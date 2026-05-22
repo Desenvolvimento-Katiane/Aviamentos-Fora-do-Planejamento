@@ -242,7 +242,16 @@
                     <div class="brand-subtitle">Comparação de Planilhas</div>
                 </div>
             </div>
-            <span class="header-pill">Tecidos Fora do Planejamento</span>
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+                <span class="header-pill">Tecidos Fora do Planejamento</span>
+                <button type="button"
+                        data-bs-toggle="modal" data-bs-target="#modalInstrucao"
+                        style="background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.35);
+                               border-radius:20px;padding:0.35rem 1rem;font-size:0.78rem;font-weight:500;
+                               display:flex;align-items:center;gap:0.4rem;cursor:pointer;">
+                    <i class="bi bi-info-circle"></i> Instrução
+                </button>
+            </div>
         </div>
     </div>
 </header>
@@ -278,6 +287,12 @@
                 <i class="bi bi-cloud-upload me-2"></i>Upload de Planilhas
                 <span th:unless="${resultado != null}"
                       class="badge bg-warning text-dark ms-2" style="font-size:.65rem">Pendente</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="main-analise-btn" data-bs-toggle="tab"
+                    data-bs-target="#main-analise" type="button" role="tab">
+                <i class="bi bi-graph-up me-2"></i>Análise
             </button>
         </li>
     </ul>
@@ -383,7 +398,7 @@
                     <div class="table-responsive">
                         <table id="tabelaExcessos" class="table table-hover mb-0 w-100">
                             <colgroup>
-                                <col style="width:20%"> <col style="width:12%"> <col style="width:14%">
+                                <col style="width:17%"> <col style="width:12%"> <col style="width:17%">
                                 <col style="width:7%">  <col style="width:8%">  <col style="width:8%">
                                 <col style="width:9%">  <col style="width:12%">
                             </colgroup>
@@ -429,7 +444,7 @@
                     <div class="table-responsive">
                         <table id="tabelaNuncaUtil" class="table table-hover mb-0 w-100">
                             <colgroup>
-                                <col style="width:20%"> <col style="width:12%"> <col style="width:14%">
+                                <col style="width:17%"> <col style="width:12%"> <col style="width:17%">
                                 <col style="width:7%">  <col style="width:8%">  <col style="width:17%">
                                 <col style="width:12%">
                             </colgroup>
@@ -562,9 +577,95 @@
                 </div>
 
             </div>
+            <p style="color:#dc3545;font-weight:600;font-size:0.88rem;margin-top:1.2rem;">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i>Verifique se as planilhas foram atualizadas
+            </p>
 
         </div>
 
+        <!-- ── Aba 3: Análise ────────────────────────────────────────────── -->
+        <div class="tab-pane fade panel" id="main-analise" role="tabpanel">
+
+            <div th:if="${#lists.isEmpty(historicoAlteracoes)}"
+                 class="text-muted" style="padding:2rem 0;font-size:.92rem;">
+                <i class="bi bi-info-circle me-2"></i>
+                Ainda não há histórico de alterações. Faça uploads da planilha1 em datas diferentes para comparar.
+            </div>
+
+            <div th:unless="${#lists.isEmpty(historicoAlteracoes)}">
+                <div class="result-block-head mb-3">
+                    <div class="rh-icon" style="background:#fff3cd;"><i class="bi bi-graph-up" style="color:#856404;"></i></div>
+                    <span class="rh-title">Tecidos com Alteração de Quantidade Aprovada</span>
+                    <span class="badge bg-warning text-dark rh-count"
+                          th:text="${#lists.size(historicoAlteracoes)}"></span>
+                </div>
+                <div class="table-responsive">
+                    <table id="tabelaAnalise" class="table table-hover mb-0 w-100">
+                        <colgroup>
+                            <col style="width:13%"> <col style="width:30%">
+                            <col style="width:12%"> <col style="width:10%">
+                            <col style="width:35%">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Descrição</th>
+                                <th class="text-center">Qtd Atual</th>
+                                <th class="text-center">Alterações</th>
+                                <th>Histórico</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="item : ${historicoAlteracoes}">
+                                <td th:text="${item.codigoSystextil}"></td>
+                                <td th:text="${item.descricaoSystextil}"></td>
+                                <td class="text-center fw-bold" th:text="${item.quantidadeAtual}"></td>
+                                <td class="text-center">
+                                    <span class="badge bg-warning text-dark"
+                                          th:text="${item.totalAlteracoes}"></span>
+                                </td>
+                                <td>
+                                    <ul class="mb-0 ps-3" style="font-size:.82rem;line-height:1.8;">
+                                        <li th:each="h : ${item.historico}" th:text="${h}"></li>
+                                    </ul>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<!-- ── Modal Instrução ──────────────────────────────────────────────────── -->
+<div class="modal fade" id="modalInstrucao" tabindex="-1" aria-labelledby="modalInstrucaoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header" style="background:linear-gradient(120deg,#0d1b2a,#1a56db);color:#fff;">
+                <h5 class="modal-title" id="modalInstrucaoLabel">
+                    <i class="bi bi-info-circle-fill me-2"></i>Como usar
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="font-size:0.92rem;line-height:1.7;">
+                <p>Entre na gerencial do fluxograma e, na aba <strong>"Visões"</strong>, procure por <strong>"Claude Tecido"</strong>. Irão aparecer 3 planilhas já organizadas em ordem.</p>
+                <ul>
+                    <li><strong>Planilha 1</strong> — Tecidos Aprovados</li>
+                    <li><strong>Planilha 2</strong> — Tecidos Utilizados - Peças liberadas</li>
+                    <li><strong>Planilha 3</strong> — Tecidos Utilizados - Coleção Completa</li>
+                </ul>
+                <p>Faça o download de cada uma em: <strong>Excel sem imagens e sem mesclar</strong></p>
+                <hr>
+                <p>Depois, vá até a aba <strong>"Upload de Planilhas"</strong> e envie cada planilha no campo correspondente.</p>
+                <p>Antes de enviar a segunda planilha, verifique se a primeira foi atualizada corretamente — aparecerá a <strong>data da última atualização</strong> na tela. Após confirmar, prossiga com o envio das próximas planilhas.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -631,6 +732,16 @@
                 lengthChange: false,
                 autoWidth: false,
                 order: [[1, 'asc']]
+            });
+        }
+        if ($('#tabelaAnalise').length) {
+            $('#tabelaAnalise').DataTable({
+                language: dtLang,
+                pageLength: 50,
+                lengthChange: false,
+                autoWidth: false,
+                order: [[3, 'desc']],
+                columnDefs: [{ targets: [2, 3], className: 'text-center' }]
             });
         }
 

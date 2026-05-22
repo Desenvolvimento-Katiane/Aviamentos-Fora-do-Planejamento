@@ -1,9 +1,11 @@
 package com.example.ProjetoPadrao.controller;
 
+import com.example.ProjetoPadrao.model.ItemAlteracao;
 import com.example.ProjetoPadrao.model.ItemRelatorio;
 import com.example.ProjetoPadrao.model.ResultadoAnalise;
 import com.example.ProjetoPadrao.service.AnaliseService;
 import com.example.ProjetoPadrao.service.ExcelService;
+import com.example.ProjetoPadrao.service.HistoricoService;
 import com.example.ProjetoPadrao.service.ObservacaoService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +25,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +42,9 @@ public class TecidoController {
 
     @Autowired
     private ObservacaoService observacaoService;
+
+    @Autowired
+    private HistoricoService historicoService;
 
     private static final DateTimeFormatter FMT_CARD = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
@@ -87,6 +93,12 @@ public class TecidoController {
 
         model.addAttribute("marcasValidas", analiseService.getMarcasValidas());
 
+        try {
+            model.addAttribute("historicoAlteracoes", historicoService.calcularAlteracoes());
+        } catch (IOException ignored) {
+            model.addAttribute("historicoAlteracoes", Collections.emptyList());
+        }
+
         // Análise só roda se o flag existir
         if (Files.exists(flagPath())) {
             try {
@@ -116,6 +128,7 @@ public class TecidoController {
             boolean algumEnviado = false;
             if (p1 != null && !p1.isEmpty()) {
                 excelService.salvarArquivo(p1, "planilha1.xlsx");
+                try { historicoService.salvarSnapshot(excelService.lerPlanilha1()); } catch (IOException ignored) {}
                 algumEnviado = true;
             }
             if (p2 != null && !p2.isEmpty()) {
@@ -201,7 +214,10 @@ public class TecidoController {
                 }
             } else {
                 if (item.linha() != null && !item.linha().isBlank()) {
-                    raw.merge(item.linha().trim(), 1, Integer::sum);
+                    for (String m : item.linha().split(",")) {
+                        String marca = m.trim();
+                        if (!marca.isEmpty()) raw.merge(marca, 1, Integer::sum);
+                    }
                 }
             }
         }
