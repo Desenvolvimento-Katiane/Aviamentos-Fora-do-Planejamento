@@ -152,20 +152,23 @@ public class ExcelService {
             if (headerRowIndex < 0)
                 throw new IOException("Cabeçalho 'Código Systêxtil' não encontrado na " + nome + ". Verifique o arquivo.");
             Map<String, Integer> headers = mapHeaders(sheet.getRow(headerRowIndex));
-            int colModelo = getColIndex(headers, "modelo");
-            int colMarca  = getColIndex(headers, "marca");
-            int colCodigo = getColIndex(headers, "codigo systextil");
+            int colModelo  = getColIndex(headers, "modelo");
+            int colMarca   = getColIndex(headers, "marca");
+            int colCodigo  = getColIndex(headers, "codigo systextil");
+            int colConsumo = getColIndex(headers, "consumo");
             List<TecidoUtilizado> list = new ArrayList<>();
             for (int i = headerRowIndex + 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
                 String codigo = readStringCell(row.getCell(colCodigo), evaluator);
                 if (codigo.isBlank()) continue;
+                double consumo = colConsumo >= 0 ? readDoubleCell(row.getCell(colConsumo), evaluator) : 0.0;
                 list.add(new TecidoUtilizado(
                         colModelo >= 0 ? readStringCell(row.getCell(colModelo), evaluator) : "",
                         colMarca >= 0  ? readStringCell(row.getCell(colMarca), evaluator)  : "",
                         codigo,
-                        normalizarCodigo(codigo)
+                        normalizarCodigo(codigo),
+                        consumo
                 ));
             }
             return list;
@@ -314,6 +317,27 @@ public class ExcelService {
             case NUMERIC -> formatNumeric(cell.getNumericCellValue());
             case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
             default      -> "";
+        };
+    }
+
+    private double readDoubleCell(Cell cell, FormulaEvaluator evaluator) {
+        if (cell == null) return 0.0;
+        CellType type = cell.getCellType();
+        if (type == CellType.FORMULA) {
+            try {
+                CellValue cv = evaluator.evaluate(cell);
+                return cv.getCellType() == CellType.NUMERIC ? cv.getNumberValue() : 0.0;
+            } catch (Exception e) {
+                return 0.0;
+            }
+        }
+        return switch (type) {
+            case NUMERIC -> cell.getNumericCellValue();
+            case STRING  -> {
+                try { yield Double.parseDouble(cell.getStringCellValue().trim()); }
+                catch (NumberFormatException ex) { yield 0.0; }
+            }
+            default -> 0.0;
         };
     }
 

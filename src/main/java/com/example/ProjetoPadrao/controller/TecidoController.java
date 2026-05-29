@@ -111,12 +111,12 @@ public class TecidoController {
                         model.addAttribute("totalNuncaUtilizadosCC", resultadoCC.nuncaUtilizados().size());
                         model.addAttribute("marcasGraficoExcessosCC", buildMarcasMap(resultadoCC.excessos(), true));
                         model.addAttribute("marcasGraficoNuncaCC", buildMarcasMap(resultadoCC.nuncaUtilizados(), false));
-                        Map<String, Integer> p3Counts = analiseService.contarReferenciasP3(colecaoAtual.slug());
-                        Map<String, Integer> utilizadoMap = new LinkedHashMap<>();
+                        Map<String, Double> p3Counts = analiseService.contarReferenciasP3(colecaoAtual.slug());
+                        Map<String, Double> utilizadoMap = new LinkedHashMap<>();
                         for (ItemAlteracao item : historicoAlteracoes) {
                             if (item.codigoSystextil() != null) {
                                 String normKey = item.codigoSystextil().trim().toLowerCase();
-                                utilizadoMap.put(item.codigoSystextil(), p3Counts.getOrDefault(normKey, 0));
+                                utilizadoMap.put(item.codigoSystextil(), p3Counts.getOrDefault(normKey, 0.0));
                             }
                         }
                         model.addAttribute("utilizadoMap", utilizadoMap);

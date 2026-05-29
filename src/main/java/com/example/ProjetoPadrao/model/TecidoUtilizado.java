@@ -4,5 +4,6 @@ public record TecidoUtilizado(
         String modelo,
         String marca,
         String codigoSystextil,
-        String codigoNormalizado) {
+        String codigoNormalizado,
+        double consumo) {
 }

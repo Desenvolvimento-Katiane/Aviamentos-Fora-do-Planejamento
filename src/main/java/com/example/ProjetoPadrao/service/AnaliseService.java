@@ -73,47 +73,32 @@ public class AnaliseService {
         );
     }
 
-    // ── Contagem de referências por tecido (P3) ────────────────────────────
+    // ── Soma de consumo por código (P3) ───────────────────────────────────
 
-    public Map<String, Integer> contarReferenciasP3(String slug) throws IOException {
-        return agruparReferencias(excelService.lerPlanilha3(slug));
+    public Map<String, Double> contarReferenciasP3(String slug) throws IOException {
+        return agruparConsumo(excelService.lerPlanilha3(slug));
     }
 
-    public Map<String, Integer> contarReferenciasP3Todas() {
-        Map<String, Set<String>> porCodigo = new LinkedHashMap<>();
-        int[] idx = {0};
+    public Map<String, Double> contarReferenciasP3Todas() {
+        Map<String, Double> result = new LinkedHashMap<>();
         for (ColecaoInfo c : colecaoService.listarColecoes()) {
             if (!c.p3Existe()) continue;
             try {
                 for (TecidoUtilizado tu : excelService.lerPlanilha3(c.slug())) {
                     String cod = tu.codigoNormalizado();
-                    if (!cod.isBlank()) {
-                        String mod = tu.modelo().trim().toLowerCase();
-                        String chave = mod.isBlank() ? "#" + idx[0] : mod;
-                        porCodigo.computeIfAbsent(cod, k -> new LinkedHashSet<>()).add(chave);
-                    }
-                    idx[0]++;
+                    if (!cod.isBlank()) result.merge(cod, tu.consumo(), Double::sum);
                 }
             } catch (IOException ignored) {}
         }
-        Map<String, Integer> result = new LinkedHashMap<>();
-        porCodigo.forEach((k, v) -> result.put(k, v.size()));
         return result;
     }
 
-    private Map<String, Integer> agruparReferencias(List<TecidoUtilizado> lista) {
-        Map<String, Set<String>> porCodigo = new LinkedHashMap<>();
-        for (int i = 0; i < lista.size(); i++) {
-            TecidoUtilizado tu = lista.get(i);
+    private Map<String, Double> agruparConsumo(List<TecidoUtilizado> lista) {
+        Map<String, Double> result = new LinkedHashMap<>();
+        for (TecidoUtilizado tu : lista) {
             String cod = tu.codigoNormalizado();
-            if (!cod.isBlank()) {
-                String mod = tu.modelo().trim().toLowerCase();
-                String chave = mod.isBlank() ? "#" + i : mod;
-                porCodigo.computeIfAbsent(cod, k -> new LinkedHashSet<>()).add(chave);
-            }
+            if (!cod.isBlank()) result.merge(cod, tu.consumo(), Double::sum);
         }
-        Map<String, Integer> result = new LinkedHashMap<>();
-        porCodigo.forEach((k, v) -> result.put(k, v.size()));
         return result;
     }
 
@@ -192,58 +177,56 @@ public class AnaliseService {
             }
         }
 
-        Map<String, Set<String>> mapUtilizados = new LinkedHashMap<>();
+        Map<String, Double> mapConsumo = new LinkedHashMap<>();
         Map<String, Set<String>> mapMarcas = new LinkedHashMap<>();
         for (TecidoUtilizado tu : utilizados) {
-            String modeloNorm = tu.modelo().trim().toLowerCase();
-            if (!modeloNorm.isBlank())
-                mapUtilizados.computeIfAbsent(tu.codigoNormalizado(), k -> new LinkedHashSet<>()).add(modeloNorm);
+            String cod = tu.codigoNormalizado();
+            if (!cod.isBlank()) mapConsumo.merge(cod, tu.consumo(), Double::sum);
             for (String marca : extrairMarcas(tu.marca()))
-                mapMarcas.computeIfAbsent(tu.codigoNormalizado(), k -> new LinkedHashSet<>()).add(marca);
+                mapMarcas.computeIfAbsent(cod, k -> new LinkedHashSet<>()).add(marca);
         }
 
         List<ItemRelatorio> excessos = new ArrayList<>();
         for (Map.Entry<String, TecidoPlanejado> entry : mapPlanejado.entrySet()) {
             String codigo = entry.getKey();
             TecidoPlanejado tp = entry.getValue();
-            int totalUtilizado = mapUtilizados.getOrDefault(codigo, Collections.emptySet()).size();
-            if (totalUtilizado > tp.totalAprovacaoTecido() && tp.totalAprovacaoTecido() > 0) {
+            double totalConsumido = mapConsumo.getOrDefault(codigo, 0.0);
+            if (totalConsumido > tp.totalAprovacaoTecido() && tp.totalAprovacaoTecido() > 0) {
                 String marcas = String.join(", ", mapMarcas.getOrDefault(codigo, Collections.emptySet()));
                 excessos.add(new ItemRelatorio(
                         tp.modelo(), tp.codigoSystextil(), tp.descricaoSystextil(),
                         tp.totalAprovacaoTecido(), tp.aprovCont(),
-                        totalUtilizado, totalUtilizado - tp.totalAprovacaoTecido(),
+                        totalConsumido, totalConsumido - tp.totalAprovacaoTecido(),
                         false, marcas, "", colecaoLabel));
             }
         }
-        excessos.sort(Comparator.comparingInt(ItemRelatorio::diferenca).reversed());
+        excessos.sort(Comparator.comparingDouble(ItemRelatorio::diferenca).reversed());
 
         List<ItemRelatorio> semPlanejamento = new ArrayList<>();
-        for (Map.Entry<String, Set<String>> entry : mapUtilizados.entrySet()) {
+        for (Map.Entry<String, Double> entry : mapConsumo.entrySet()) {
             String codigo = entry.getKey();
             if (!mapPlanejado.containsKey(codigo)) {
                 String codigoOriginal = utilizados.stream()
                         .filter(u -> u.codigoNormalizado().equals(codigo))
                         .map(TecidoUtilizado::codigoSystextil)
                         .findFirst().orElse(codigo);
+                double totalConsumido = entry.getValue();
                 semPlanejamento.add(new ItemRelatorio(
                         "", codigoOriginal, "", 0, "",
-                        entry.getValue().size(), entry.getValue().size(), true, "", "", colecaoLabel));
+                        totalConsumido, totalConsumido, true, "", "", colecaoLabel));
             }
         }
-        semPlanejamento.sort(Comparator.comparingInt(ItemRelatorio::totalModeloSomado).reversed());
+        semPlanejamento.sort(Comparator.comparingDouble(ItemRelatorio::totalModeloSomado).reversed());
 
         List<ItemRelatorio> nuncaUtilizados = new ArrayList<>();
         if (utilizados3 != null) {
-            Map<String, Set<String>> mapUtilizados3 = new LinkedHashMap<>();
+            Set<String> codigosP3 = new LinkedHashSet<>();
             for (TecidoUtilizado tu : utilizados3) {
-                String modeloNorm = tu.modelo().trim().toLowerCase();
-                if (!modeloNorm.isBlank())
-                    mapUtilizados3.computeIfAbsent(tu.codigoNormalizado(), k -> new LinkedHashSet<>()).add(modeloNorm);
+                if (!tu.codigoNormalizado().isBlank()) codigosP3.add(tu.codigoNormalizado());
             }
             for (Map.Entry<String, TecidoPlanejado> entry : mapPlanejado.entrySet()) {
                 String codigo = entry.getKey();
-                if (!mapUtilizados3.containsKey(codigo)) {
+                if (!codigosP3.contains(codigo)) {
                     TecidoPlanejado tp = entry.getValue();
                     String marcaNorm = String.join(", ", mapLinhas.getOrDefault(codigo, Collections.emptySet()));
                     if (marcaNorm.isBlank()) marcaNorm = tp.linha() != null ? tp.linha().trim() : "";
@@ -272,46 +255,46 @@ public class AnaliseService {
                 mapLinhas.computeIfAbsent(tp.codigoNormalizado(), k -> new LinkedHashSet<>()).add(marca);
         }
 
-        Map<String, Set<String>> mapUtilizados = new LinkedHashMap<>();
+        Map<String, Double> mapConsumo = new LinkedHashMap<>();
         Map<String, Set<String>> mapMarcas = new LinkedHashMap<>();
         for (TecidoUtilizado tu : utilizados) {
-            String modeloNorm = tu.modelo().trim().toLowerCase();
-            if (!modeloNorm.isBlank())
-                mapUtilizados.computeIfAbsent(tu.codigoNormalizado(), k -> new LinkedHashSet<>()).add(modeloNorm);
+            String cod = tu.codigoNormalizado();
+            if (!cod.isBlank()) mapConsumo.merge(cod, tu.consumo(), Double::sum);
             for (String marca : extrairMarcas(tu.marca()))
-                mapMarcas.computeIfAbsent(tu.codigoNormalizado(), k -> new LinkedHashSet<>()).add(marca);
+                mapMarcas.computeIfAbsent(cod, k -> new LinkedHashSet<>()).add(marca);
         }
 
         List<ItemRelatorio> excessos = new ArrayList<>();
         for (Map.Entry<String, TecidoPlanejado> entry : mapPlanejado.entrySet()) {
             String codigo = entry.getKey();
             TecidoPlanejado tp = entry.getValue();
-            int totalUtilizado = mapUtilizados.getOrDefault(codigo, Collections.emptySet()).size();
-            if (totalUtilizado > tp.totalAprovacaoTecido() && tp.totalAprovacaoTecido() > 0) {
+            double totalConsumido = mapConsumo.getOrDefault(codigo, 0.0);
+            if (totalConsumido > tp.totalAprovacaoTecido() && tp.totalAprovacaoTecido() > 0) {
                 String marcas = String.join(", ", mapMarcas.getOrDefault(codigo, Collections.emptySet()));
                 excessos.add(new ItemRelatorio(
                         tp.modelo(), tp.codigoSystextil(), tp.descricaoSystextil(),
                         tp.totalAprovacaoTecido(), tp.aprovCont(),
-                        totalUtilizado, totalUtilizado - tp.totalAprovacaoTecido(),
+                        totalConsumido, totalConsumido - tp.totalAprovacaoTecido(),
                         false, marcas, "", colecaoLabel));
             }
         }
-        excessos.sort(Comparator.comparingInt(ItemRelatorio::diferenca).reversed());
+        excessos.sort(Comparator.comparingDouble(ItemRelatorio::diferenca).reversed());
 
         List<ItemRelatorio> semPlanejamento = new ArrayList<>();
-        for (Map.Entry<String, Set<String>> entry : mapUtilizados.entrySet()) {
+        for (Map.Entry<String, Double> entry : mapConsumo.entrySet()) {
             String codigo = entry.getKey();
             if (!mapPlanejado.containsKey(codigo)) {
                 String codigoOriginal = utilizados.stream()
                         .filter(u -> u.codigoNormalizado().equals(codigo))
                         .map(TecidoUtilizado::codigoSystextil)
                         .findFirst().orElse(codigo);
+                double totalConsumido = entry.getValue();
                 semPlanejamento.add(new ItemRelatorio(
                         "", codigoOriginal, "", 0, "",
-                        entry.getValue().size(), entry.getValue().size(), true, "", "", colecaoLabel));
+                        totalConsumido, totalConsumido, true, "", "", colecaoLabel));
             }
         }
-        semPlanejamento.sort(Comparator.comparingInt(ItemRelatorio::totalModeloSomado).reversed());
+        semPlanejamento.sort(Comparator.comparingDouble(ItemRelatorio::totalModeloSomado).reversed());
 
         List<ItemRelatorio> nuncaUtilizados = new ArrayList<>();
         for (Map.Entry<String, TecidoPlanejado> entry : mapPlanejado.entrySet()) {
