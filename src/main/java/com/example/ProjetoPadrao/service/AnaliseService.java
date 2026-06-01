@@ -53,12 +53,75 @@ public class AnaliseService {
     @Autowired
     private ColecaoService colecaoService;
 
+    // ── Peças Liberadas (P1 vs P2) ─────────────────────────────────────────
+
+    public List<ItemRelatorio> analisarPecasLiberadas(String slug) throws IOException {
+        if (!excelService.arquivoExisteColecao(slug, "planilha2.xlsx"))
+            return Collections.emptyList();
+        return calcularPecasLiberadas(
+                excelService.lerPlanilha1(slug),
+                excelService.lerPlanilha2(slug),
+                ""
+        );
+    }
+
+    public List<ItemRelatorio> analisarPecasLiberadasTodas() {
+        List<ItemRelatorio> result = new ArrayList<>();
+        for (ColecaoInfo c : colecaoService.listarColecoes()) {
+            if (!c.p1Existe() || !c.p2Existe()) continue;
+            try {
+                result.addAll(calcularPecasLiberadas(
+                        excelService.lerPlanilha1(c.slug()),
+                        excelService.lerPlanilha2(c.slug()),
+                        c.nomeOriginal()
+                ));
+            } catch (IOException ignored) {}
+        }
+        return result;
+    }
+
+    private List<ItemRelatorio> calcularPecasLiberadas(
+            List<TecidoPlanejado> planejados,
+            List<TecidoUtilizado> utilizados,
+            String colecaoLabel) {
+
+        Map<String, TecidoPlanejado> mapPlanejado = new LinkedHashMap<>();
+        for (TecidoPlanejado tp : planejados)
+            mapPlanejado.putIfAbsent(tp.codigoNormalizado(), tp);
+
+        Map<String, Double> mapConsumo = new LinkedHashMap<>();
+        Map<String, Set<String>> mapMarcas = new LinkedHashMap<>();
+        for (TecidoUtilizado tu : utilizados) {
+            String cod = tu.codigoNormalizado();
+            if (!cod.isBlank()) mapConsumo.merge(cod, tu.consumo(), Double::sum);
+            for (String marca : extrairMarcas(tu.marca()))
+                mapMarcas.computeIfAbsent(cod, k -> new LinkedHashSet<>()).add(marca);
+        }
+
+        List<ItemRelatorio> result = new ArrayList<>();
+        for (Map.Entry<String, TecidoPlanejado> entry : mapPlanejado.entrySet()) {
+            String codigo = entry.getKey();
+            TecidoPlanejado tp = entry.getValue();
+            double consumoTotal = mapConsumo.getOrDefault(codigo, 0.0);
+            if (consumoTotal > tp.totalAprovacaoTecido() && tp.totalAprovacaoTecido() > 0) {
+                String marcas = String.join(", ", mapMarcas.getOrDefault(codigo, Collections.emptySet()));
+                result.add(new ItemRelatorio(
+                        tp.modelo(), tp.codigoSystextil(), tp.descricaoSystextil(),
+                        tp.totalAprovacaoTecido(), tp.aprovCont(),
+                        consumoTotal, consumoTotal - tp.totalAprovacaoTecido(),
+                        false, marcas, "", colecaoLabel));
+            }
+        }
+        result.sort(Comparator.comparingDouble(ItemRelatorio::diferenca).reversed());
+        return result;
+    }
+
     // ── Análise por coleção ─────────────────────────────────────────────────
 
     public ResultadoAnalise analisar(String slug) throws IOException {
         return calcularResultado(
                 excelService.lerPlanilha1(slug),
-                excelService.lerPlanilha2(slug),
+                Collections.emptyList(),
                 excelService.arquivoExisteColecao(slug, "planilha3.xlsx")
                         ? excelService.lerPlanilha3(slug) : null,
                 ""
@@ -109,10 +172,10 @@ public class AnaliseService {
         List<ItemRelatorio> semPlanejamento = new ArrayList<>();
         List<ItemRelatorio> nuncaUtilizados = new ArrayList<>();
         for (ColecaoInfo c : colecaoService.listarColecoes()) {
-            if (!c.p1Existe() || !c.p2Existe()) continue;
+            if (!c.p1Existe()) continue;
             ResultadoAnalise r = calcularResultado(
                     excelService.lerPlanilha1(c.slug()),
-                    excelService.lerPlanilha2(c.slug()),
+                    Collections.emptyList(),
                     c.p3Existe() ? excelService.lerPlanilha3(c.slug()) : null,
                     c.nomeOriginal()
             );
@@ -299,7 +362,7 @@ public class AnaliseService {
         List<ItemRelatorio> nuncaUtilizados = new ArrayList<>();
         for (Map.Entry<String, TecidoPlanejado> entry : mapPlanejado.entrySet()) {
             String codigo = entry.getKey();
-            if (!mapUtilizados.containsKey(codigo)) {
+            if (!mapConsumo.containsKey(codigo)) {
                 TecidoPlanejado tp = entry.getValue();
                 String marcaNorm = String.join(", ", mapLinhas.getOrDefault(codigo, Collections.emptySet()));
                 if (marcaNorm.isBlank()) marcaNorm = tp.linha() != null ? tp.linha().trim() : "";

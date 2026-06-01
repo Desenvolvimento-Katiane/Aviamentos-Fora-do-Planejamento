@@ -91,14 +91,21 @@ public class TecidoController {
             } catch (IOException ignored) {}
             model.addAttribute("historicoAlteracoes", historicoAlteracoes);
 
+            if (colecaoAtual.p1Existe() && colecaoAtual.p2Existe()) {
+                try {
+                    List<ItemRelatorio> resultadoPL = analiseService.analisarPecasLiberadas(colecaoAtual.slug());
+                    model.addAttribute("resultadoPL", resultadoPL);
+                    model.addAttribute("totalPL", resultadoPL.size());
+                } catch (IOException e) {
+                    model.addAttribute("erroPL", "Erro ao carregar Peças Liberadas: " + e.getMessage());
+                }
+            }
+
             if (Files.exists(flagPath(colecaoAtual.slug()))) {
                 try {
                     ResultadoAnalise resultado = analiseService.analisar(colecaoAtual.slug());
                     model.addAttribute("resultado", resultado);
-                    model.addAttribute("totalExcessos", resultado.excessos().size());
                     model.addAttribute("totalNuncaUtilizados", resultado.nuncaUtilizados().size());
-                    model.addAttribute("marcasGraficoExcessos", buildMarcasMap(resultado.excessos(), true));
-                    model.addAttribute("marcasGraficoNunca", buildMarcasMap(resultado.nuncaUtilizados(), false));
                 } catch (IOException e) {
                     model.addAttribute("erro", "Erro ao carregar análise: " + e.getMessage());
                 }
@@ -136,13 +143,16 @@ public class TecidoController {
             try {
                 ResultadoAnalise resultado = analiseService.analisarTodas();
                 model.addAttribute("resultado", resultado);
-                model.addAttribute("totalExcessos", resultado.excessos().size());
                 model.addAttribute("totalNuncaUtilizados", resultado.nuncaUtilizados().size());
-                model.addAttribute("marcasGraficoExcessos", buildMarcasMap(resultado.excessos(), true));
-                model.addAttribute("marcasGraficoNunca", buildMarcasMap(resultado.nuncaUtilizados(), false));
             } catch (IOException e) {
                 model.addAttribute("erro", "Erro ao carregar análise: " + e.getMessage());
             }
+
+            try {
+                List<ItemRelatorio> resultadoPL = analiseService.analisarPecasLiberadasTodas();
+                model.addAttribute("resultadoPL", resultadoPL);
+                model.addAttribute("totalPL", resultadoPL.size());
+            } catch (Exception ignored) {}
 
             try {
                 ResultadoAnalise resultadoCC = analiseService.analisarColecaoCompletaTodas();
@@ -215,7 +225,6 @@ public class TecidoController {
                 }
 
                 if (excelService.arquivoExisteColecao(slug, "planilha1.xlsx")
-                        && excelService.arquivoExisteColecao(slug, "planilha2.xlsx")
                         && excelService.arquivoExisteColecao(slug, "planilha3.xlsx")) {
                     try {
                         analiseService.analisar(slug);
@@ -310,6 +319,22 @@ public class TecidoController {
         response.setHeader("Content-Disposition", "attachment; filename=\"relatorio-colecao-completa.xlsx\"");
         excelService.gerarExcel(resultado.excessos(), resultado.semPlanejamento(),
                 resultado.nuncaUtilizados(), observacoes, response.getOutputStream());
+    }
+
+    @GetMapping("/exportar-pecas-liberadas")
+    public void exportarPecasLiberadas(@RequestParam(required = false) String colecao,
+                                       HttpServletResponse response) throws IOException {
+        List<ItemRelatorio> resultado;
+        if (TODAS.equals(colecao)) {
+            resultado = analiseService.analisarPecasLiberadasTodas();
+        } else {
+            String slug = colecao != null ? colecao : colecaoService.getColecaoAtual();
+            if (slug == null) { response.sendError(HttpServletResponse.SC_NOT_FOUND); return; }
+            resultado = analiseService.analisarPecasLiberadas(slug);
+        }
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setHeader("Content-Disposition", "attachment; filename=\"pecas-liberadas.xlsx\"");
+        excelService.gerarExcelPecasLiberadas(resultado, response.getOutputStream());
     }
 
     private ResultadoAnalise filtrarPorMarca(ResultadoAnalise original, String marca) {

@@ -120,7 +120,8 @@ public class ExcelService {
             int colModelo    = getColIndex(headers, "modelo");
             int colCodigo    = getColIndex(headers, "codigo systextil");
             int colDescricao = getColIndex(headers, "descricao systextil");
-            int colTotal     = getColIndex(headers, "total aprovacao tecido");
+            int colTotal     = getColIndex(headers, "qtd aprov");
+            if (colTotal < 0) colTotal = getColIndex(headers, "total aprovacao tecido");
             int colAprov     = getColIndex(headers, "aprov/cont");
             int colLinha     = getColIndex(headers, "linha");
             List<TecidoPlanejado> list = new ArrayList<>();
@@ -175,6 +176,33 @@ public class ExcelService {
         }
     }
 
+    public void gerarExcelPecasLiberadas(List<ItemRelatorio> itens, OutputStream os) throws IOException {
+        try (Workbook wb = new XSSFWorkbook()) {
+            CellStyle headerStyle = createHeaderStyle(wb);
+            CellStyle rowStyle    = createExcessStyle(wb);
+
+            Sheet sheet = wb.createSheet("Peças Liberadas");
+            String[] headers = {"Código Systêxtil", "Descrição Systêxtil",
+                                 "Qtd Aprov", "Consumo Total", "Diferença", "Marca", "Coleção"};
+            createHeaderRow(sheet, headers, headerStyle);
+
+            int rowNum = 1;
+            for (ItemRelatorio item : itens) {
+                Row r = sheet.createRow(rowNum++);
+                for (int c = 0; c < 7; c++) r.createCell(c).setCellStyle(rowStyle);
+                r.getCell(0).setCellValue(item.codigoSystextil());
+                r.getCell(1).setCellValue(item.descricaoSystextil());
+                r.getCell(2).setCellValue(item.totalAprovacaoTecido());
+                r.getCell(3).setCellValue(item.totalModeloSomado());
+                r.getCell(4).setCellValue("+" + item.diferenca());
+                r.getCell(5).setCellValue(item.marcas());
+                r.getCell(6).setCellValue(item.colecao());
+            }
+            autoSizeColumns(sheet, 7);
+            wb.write(os);
+        }
+    }
+
     public void gerarExcel(List<ItemRelatorio> excessos, List<ItemRelatorio> semPlanejamento,
                            List<ItemRelatorio> nuncaUtilizados, Map<String, String> observacoes,
                            OutputStream os) throws IOException {
@@ -183,46 +211,13 @@ public class ExcelService {
             CellStyle excessStyle = createExcessStyle(wb);
             CellStyle nuncaStyle  = createNuncaUtilStyle(wb);
 
-            // Aba 1: Excessos
-            Sheet sheet1 = wb.createSheet("Excessos");
-            String[] headers1 = {"Modelo", "Código Systêxtil", "Descrição Systêxtil",
-                                  "Total Aprovado", "Aprov/Cont", "Total Utilizado", "Diferença", "Marca"};
-            createHeaderRow(sheet1, headers1, headerStyle);
-
-            int rowNum = 1;
-            for (ItemRelatorio item : excessos) {
-                Row r = sheet1.createRow(rowNum++);
-                for (int c = 0; c < 8; c++) r.createCell(c).setCellStyle(excessStyle);
-                r.getCell(0).setCellValue(item.modelo());
-                r.getCell(1).setCellValue(item.codigoSystextil());
-                r.getCell(2).setCellValue(item.descricaoSystextil());
-                r.getCell(3).setCellValue(item.totalAprovacaoTecido());
-                r.getCell(4).setCellValue(item.aprovCont());
-                r.getCell(5).setCellValue(item.totalModeloSomado());
-                r.getCell(6).setCellValue("+" + item.diferenca());
-                r.getCell(7).setCellValue(item.marcas());
-            }
-            autoSizeColumns(sheet1, 8);
-
-            // Aba 2: Sem Planejamento
-            Sheet sheet2 = wb.createSheet("Sem Planejamento");
-            createHeaderRow(sheet2, new String[]{"Código Systêxtil", "Total Modelos Utilizados"}, headerStyle);
-
-            rowNum = 1;
-            for (ItemRelatorio item : semPlanejamento) {
-                Row r = sheet2.createRow(rowNum++);
-                r.createCell(0).setCellValue(item.codigoSystextil());
-                r.createCell(1).setCellValue(item.totalModeloSomado());
-            }
-            autoSizeColumns(sheet2, 2);
-
-            // Aba 3: Nunca Utilizados
+            // Aba 1: Nunca Utilizados
             Sheet sheet3 = wb.createSheet("Nunca Utilizados");
             String[] headers3 = {"Modelo", "Código Systêxtil", "Descrição Systêxtil",
                                   "Total Aprovado", "Aprov/Cont", "Linha", "Observação"};
             createHeaderRow(sheet3, headers3, headerStyle);
 
-            rowNum = 1;
+            int rowNum = 1;
             for (ItemRelatorio item : nuncaUtilizados) {
                 Row r = sheet3.createRow(rowNum++);
                 for (int c = 0; c < 7; c++) r.createCell(c).setCellStyle(nuncaStyle);

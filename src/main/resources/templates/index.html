@@ -319,7 +319,7 @@
     <ul class="nav nav-wrap" id="mainTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link"
-                    th:classappend="${resultado != null and stayOnUpload != true} ? 'active'"
+                    th:classappend="${resultadoPL != null and stayOnUpload != true} ? 'active'"
                     id="main-resultados-btn" data-bs-toggle="tab"
                     data-bs-target="#main-resultados" type="button" role="tab">
                 <i class="bi bi-bar-chart-fill me-2"></i>Peças Liberadas
@@ -327,6 +327,7 @@
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="main-cc-btn" data-bs-toggle="tab"
+                    th:classappend="${resultadoPL == null and resultado != null and stayOnUpload != true} ? 'active'"
                     data-bs-target="#main-cc" type="button" role="tab">
                 <i class="bi bi-collection me-2"></i>Coleção Completa
             </button>
@@ -345,11 +346,11 @@
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link"
-                    th:classappend="${resultado == null or stayOnUpload == true} ? 'active'"
+                    th:classappend="${(resultado == null and resultadoPL == null) or stayOnUpload == true} ? 'active'"
                     id="main-upload-btn" data-bs-toggle="tab"
                     data-bs-target="#main-upload" type="button" role="tab">
                 <i class="bi bi-cloud-upload me-2"></i>Upload de Planilhas
-                <span th:unless="${resultado != null}"
+                <span th:unless="${resultado != null or resultadoPL != null}"
                       class="badge bg-warning text-dark ms-2" style="font-size:.65rem">Pendente</span>
             </button>
         </li>
@@ -357,46 +358,32 @@
 
     <div class="tab-content" id="mainTabsContent">
 
-        <!-- ── Aba 1: Resultados ──────────────────────────────────────── -->
+        <!-- ── Aba: Peças Liberadas ──────────────────────────────────────── -->
         <div class="tab-pane fade panel"
-             th:classappend="${resultado != null and stayOnUpload != true} ? 'show active'"
+             th:classappend="${resultadoPL != null and stayOnUpload != true} ? 'show active'"
              id="main-resultados" role="tabpanel">
 
-            <div class="alert alert-secondary rounded-3" th:unless="${resultado != null}">
+            <div class="alert alert-secondary rounded-3" th:unless="${resultadoPL != null}">
                 <i class="bi bi-arrow-left-circle me-2"></i>
-                Faça o upload das 3 planilhas na aba <strong>Upload de Planilhas</strong>
-                e clique em <strong>Analisar</strong> para ver os resultados.
+                Faça o upload da <strong>Planilha 1</strong> e <strong>Planilha 2</strong>
+                na aba <strong>Upload de Planilhas</strong> para ver os resultados.
             </div>
 
-            <div th:if="${resultado != null}">
-
-                <!-- Gráficos Marcas x Qtd Tecidos -->
-                <div class="row g-3 mb-4">
-                    <div class="col-12 col-lg-6" th:if="${marcasGraficoExcessos != null and !marcasGraficoExcessos.isEmpty()}">
-                        <div class="p-3 rounded-4 bg-white shadow-sm h-100">
-                            <div class="mb-2" style="color:#5c6b8a;font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px">
-                                Tecidos Acima do Planejado por Marca
-                            </div>
-                            <canvas id="graficaExcessos" style="max-height:200px"></canvas>
-                        </div>
-                    </div>
-                </div>
+            <div th:if="${resultadoPL != null}">
 
                 <!-- KPIs + Exportar -->
                 <div class="row g-3 mb-4 align-items-stretch">
                     <div class="col-6 col-lg-3">
-                        <div class="kpi-card h-100" style="cursor:pointer"
-                             onclick="var e=document.getElementById('bloco-excessos');window.scrollTo({top:e.getBoundingClientRect().top+window.scrollY-20,behavior:'smooth'})">
+                        <div class="kpi-card h-100">
                             <div class="kpi-icon red"><i class="bi bi-exclamation-triangle-fill"></i></div>
                             <div>
-                                <div class="kpi-num red" th:text="${totalExcessos}">0</div>
-                                <div class="kpi-lbl">Tecidos em Excesso</div>
+                                <div class="kpi-num red" th:text="${totalPL}">0</div>
+                                <div class="kpi-lbl">Divergências</div>
                             </div>
                         </div>
                     </div>
                     <div class="col-12 col-lg-3 d-flex align-items-center">
-                        <a th:href="@{/exportar(colecao=${modoTodas ? 'todas' : colecaoAtual?.slug})}"
-                           id="btnExportar"
+                        <a th:href="@{/exportar-pecas-liberadas(colecao=${modoTodas ? 'todas' : colecaoAtual?.slug})}"
                            class="btn-export">
                             <i class="bi bi-file-earmark-excel-fill" style="font-size:1.1rem"></i>
                             Exportar Excel
@@ -405,63 +392,58 @@
                 </div>
 
                 <!-- Sem ocorrências -->
-                <div class="alert alert-success rounded-3"
-                     th:if="${#lists.isEmpty(resultado.excessos) and #lists.isEmpty(resultado.nuncaUtilizados)}">
+                <div class="alert alert-success rounded-3" th:if="${#lists.isEmpty(resultadoPL)}">
                     <i class="bi bi-check-circle-fill me-2"></i>
-                    Nenhum excesso encontrado! Todos os tecidos estão dentro do planejado.
+                    Nenhuma divergência encontrada! Todos os consumos estão dentro do aprovado.
                 </div>
 
                 <!-- Filtro por Marca -->
-                <div class="filter-bar"
-                     th:if="${not #lists.isEmpty(resultado.excessos) or not #lists.isEmpty(resultado.nuncaUtilizados)}">
+                <div class="filter-bar" th:if="${not #lists.isEmpty(resultadoPL)}">
                     <i class="bi bi-funnel-fill" style="color:#1a56db;font-size:1rem"></i>
                     <span class="fi-label">Filtrar por Marca</span>
-                    <select id="filtroMarca">
+                    <select id="filtroMarcaPL">
                         <option value="">Todas as marcas</option>
                         <option th:each="m : ${marcasValidas}" th:value="${m}" th:text="${m}"></option>
                     </select>
                 </div>
 
-                <!-- Tabela: Tecidos Acima do Planejado -->
-                <div class="result-block" id="bloco-excessos" th:if="${not #lists.isEmpty(resultado.excessos)}">
+                <!-- Tabela: Divergências Peças Liberadas -->
+                <div class="result-block" id="bloco-pl" th:if="${not #lists.isEmpty(resultadoPL)}">
                     <div class="result-block-head">
                         <div class="rh-icon red"><i class="bi bi-exclamation-triangle-fill"></i></div>
-                        <span class="rh-title">Tecidos Acima do Planejado</span>
-                        <span class="badge bg-danger rh-count"
-                              th:text="${#lists.size(resultado.excessos)}"></span>
+                        <span class="rh-title">Divergências — Consumo acima do Aprovado</span>
+                        <span class="badge bg-danger rh-count" th:text="${#lists.size(resultadoPL)}"></span>
                     </div>
                     <div class="table-responsive">
-                        <table id="tabelaExcessos" class="table table-hover mb-0 w-100">
+                        <table id="tabelaPL" class="table table-hover mb-0 w-100">
                             <colgroup>
-                                <col style="width:17%"> <col style="width:12%"> <col style="width:17%">
-                                <col style="width:7%">  <col style="width:8%">  <col style="width:8%">
-                                <col style="width:9%">  <col style="width:12%">
+                                <col style="width:14%"> <col style="width:24%"> <col style="width:10%">
+                                <col style="width:10%"> <col style="width:9%">  <col style="width:14%">
+                                <col style="width:10%">
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th>Modelo</th>
                                     <th>Código Systêxtil</th>
                                     <th>Descrição</th>
-                                    <th class="text-center">Aprovado</th>
-                                    <th>Aprov/Cont</th>
-                                    <th class="text-center">Utilizado</th>
+                                    <th class="text-center">Qtd Aprov</th>
+                                    <th class="text-center">Consumo Total</th>
                                     <th class="text-center">Diferença</th>
                                     <th>Marca</th>
+                                    <th>Coleção</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr th:each="item : ${resultado.excessos}"
+                                <tr th:each="item : ${resultadoPL}"
                                     th:classappend="${item.diferenca > 5} ? 'excess-row-hi' : 'excess-row'">
-                                    <td th:text="${item.modelo}"></td>
                                     <td th:text="${item.codigoSystextil}"></td>
                                     <td th:text="${item.descricaoSystextil}"></td>
                                     <td class="text-center" th:text="${item.totalAprovacaoTecido}"></td>
-                                    <td th:text="${item.aprovCont}"></td>
                                     <td class="text-center fw-bold" th:text="${item.totalModeloSomado}"></td>
                                     <td class="text-center">
                                         <span class="diff-pill" th:text="'+' + ${item.diferenca}"></span>
                                     </td>
                                     <td th:text="${item.marcas}"></td>
+                                    <td th:text="${not #strings.isEmpty(item.colecao) ? item.colecao : (colecaoAtual != null ? colecaoAtual.nomeOriginal : '')}"></td>
                                 </tr>
                             </tbody>
                         </table>
@@ -471,7 +453,7 @@
             </div>
         </div>
 
-        <!-- ── Aba 2: Upload ──────────────────────────────────────────── -->
+        <!-- ── Aba: Upload ──────────────────────────────────────────── -->
         <div class="tab-pane fade panel"
              th:classappend="${resultado == null or stayOnUpload == true} ? 'show active'"
              id="main-upload" role="tabpanel">
@@ -571,8 +553,10 @@
 
         </div>
 
-        <!-- ── Aba 3: Coleção Completa ──────────────────────────────────── -->
-        <div class="tab-pane fade panel" id="main-cc" role="tabpanel">
+        <!-- ── Aba: Coleção Completa ──────────────────────────────────── -->
+        <div class="tab-pane fade panel" id="main-cc"
+             th:classappend="${resultado != null and stayOnUpload != true} ? 'show active'"
+             role="tabpanel">
 
             <div th:if="${erroCC}" class="alert alert-danger rounded-3">
                 <i class="bi bi-exclamation-triangle-fill me-2"></i><span th:text="${erroCC}"></span>
@@ -581,7 +565,7 @@
             <div th:unless="${resultadoCC != null}"
                  class="alert alert-secondary rounded-3">
                 <i class="bi bi-arrow-left-circle me-2"></i>
-                Faça o upload das 3 planilhas na aba <strong>Upload de Planilhas</strong>
+                Faça o upload das 2 planilhas na aba <strong>Upload de Planilhas</strong>
                 e clique em <strong>Analisar</strong> para ver os resultados da Coleção Completa.
             </div>
 
@@ -859,12 +843,11 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" style="font-size:0.92rem;line-height:1.7;">
-                <p>Entre na gerencial do fluxograma e, na aba <strong>"Visões"</strong>, procure por <strong>"Claude Tecido"</strong>. Irão aparecer 3 planilhas já organizadas em ordem.</p>
+                <p>Entre na gerencial do fluxograma e, na aba <strong>"Visões"</strong>, procure por <strong>"Claude Tecido"</strong>. Irão aparecer 2 planilhas já organizadas em ordem.</p>
                 <p style="color:#c0392b;font-weight:600;"><i class="bi bi-exclamation-triangle-fill me-1"></i>Importante: Na Gerencial, precisa Requisitar reprocessamento de fórmulas, e só gerar as planilhas depois que esse processo esteja 100%.</p>
                 <ul>
                     <li><strong>Planilha 1</strong> — Tecidos Aprovados</li>
-                    <li><strong>Planilha 2</strong> — Tecidos Utilizados - Peças liberadas</li>
-                    <li><strong>Planilha 3</strong> — Tecidos Utilizados - Coleção Completa</li>
+                    <li><strong>Planilha 2</strong> — Tecidos Utilizados - Coleção Completa</li>
                 </ul>
                 <p>Faça o download de cada uma em: <strong>Excel sem imagens e sem mesclar</strong></p>
                 <hr>
