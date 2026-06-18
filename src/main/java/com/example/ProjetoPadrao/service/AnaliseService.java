@@ -3,8 +3,8 @@ package com.example.ProjetoPadrao.service;
 import com.example.ProjetoPadrao.model.ColecaoInfo;
 import com.example.ProjetoPadrao.model.ItemRelatorio;
 import com.example.ProjetoPadrao.model.ResultadoAnalise;
-import com.example.ProjetoPadrao.model.TecidoPlanejado;
-import com.example.ProjetoPadrao.model.TecidoUtilizado;
+import com.example.ProjetoPadrao.model.AviamentoPlanejado;
+import com.example.ProjetoPadrao.model.AviamentoUtilizado;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -81,17 +81,17 @@ public class AnaliseService {
     }
 
     private List<ItemRelatorio> calcularPecasLiberadas(
-            List<TecidoPlanejado> planejados,
-            List<TecidoUtilizado> utilizados,
+            List<AviamentoPlanejado> planejados,
+            List<AviamentoUtilizado> utilizados,
             String colecaoLabel) {
 
-        Map<String, TecidoPlanejado> mapPlanejado = new LinkedHashMap<>();
-        for (TecidoPlanejado tp : planejados)
+        Map<String, AviamentoPlanejado> mapPlanejado = new LinkedHashMap<>();
+        for (AviamentoPlanejado tp : planejados)
             mapPlanejado.putIfAbsent(tp.codigoNormalizado(), tp);
 
         Map<String, Double> mapConsumo = new LinkedHashMap<>();
         Map<String, Set<String>> mapMarcas = new LinkedHashMap<>();
-        for (TecidoUtilizado tu : utilizados) {
+        for (AviamentoUtilizado tu : utilizados) {
             String cod = tu.codigoNormalizado();
             if (!cod.isBlank()) mapConsumo.merge(cod, tu.consumo(), Double::sum);
             for (String marca : extrairMarcas(tu.marca()))
@@ -99,16 +99,16 @@ public class AnaliseService {
         }
 
         List<ItemRelatorio> result = new ArrayList<>();
-        for (Map.Entry<String, TecidoPlanejado> entry : mapPlanejado.entrySet()) {
+        for (Map.Entry<String, AviamentoPlanejado> entry : mapPlanejado.entrySet()) {
             String codigo = entry.getKey();
-            TecidoPlanejado tp = entry.getValue();
+            AviamentoPlanejado tp = entry.getValue();
             double consumoTotal = mapConsumo.getOrDefault(codigo, 0.0);
-            if (consumoTotal > tp.totalAprovacaoTecido() && tp.totalAprovacaoTecido() > 0) {
+            if (consumoTotal > tp.totalAprovacaoAviamento() && tp.totalAprovacaoAviamento() > 0) {
                 String marcas = String.join(", ", mapMarcas.getOrDefault(codigo, Collections.emptySet()));
                 result.add(new ItemRelatorio(
                         tp.modelo(), tp.codigoSystextil(), tp.descricaoSystextil(),
-                        tp.totalAprovacaoTecido(), tp.aprovCont(),
-                        consumoTotal, consumoTotal - tp.totalAprovacaoTecido(),
+                        tp.totalAprovacaoAviamento(), tp.aprovCont(),
+                        consumoTotal, consumoTotal - tp.totalAprovacaoAviamento(),
                         false, marcas, "", colecaoLabel));
             }
         }
@@ -147,7 +147,7 @@ public class AnaliseService {
         for (ColecaoInfo c : colecaoService.listarColecoes()) {
             if (!c.p3Existe()) continue;
             try {
-                for (TecidoUtilizado tu : excelService.lerPlanilha3(c.slug())) {
+                for (AviamentoUtilizado tu : excelService.lerPlanilha3(c.slug())) {
                     String cod = tu.codigoNormalizado();
                     if (!cod.isBlank()) result.merge(cod, tu.consumo(), Double::sum);
                 }
@@ -156,9 +156,9 @@ public class AnaliseService {
         return result;
     }
 
-    private Map<String, Double> agruparConsumo(List<TecidoUtilizado> lista) {
+    private Map<String, Double> agruparConsumo(List<AviamentoUtilizado> lista) {
         Map<String, Double> result = new LinkedHashMap<>();
-        for (TecidoUtilizado tu : lista) {
+        for (AviamentoUtilizado tu : lista) {
             String cod = tu.codigoNormalizado();
             if (!cod.isBlank()) result.merge(cod, tu.consumo(), Double::sum);
         }
@@ -226,14 +226,14 @@ public class AnaliseService {
     // ── Lógica central ──────────────────────────────────────────────────────
 
     private ResultadoAnalise calcularResultado(
-            List<TecidoPlanejado> planejados,
-            List<TecidoUtilizado> utilizados,
-            List<TecidoUtilizado> utilizados3,
+            List<AviamentoPlanejado> planejados,
+            List<AviamentoUtilizado> utilizados,
+            List<AviamentoUtilizado> utilizados3,
             String colecaoLabel) throws IOException {
 
-        Map<String, TecidoPlanejado> mapPlanejado = new LinkedHashMap<>();
+        Map<String, AviamentoPlanejado> mapPlanejado = new LinkedHashMap<>();
         Map<String, Set<String>> mapLinhas = new LinkedHashMap<>();
-        for (TecidoPlanejado tp : planejados) {
+        for (AviamentoPlanejado tp : planejados) {
             mapPlanejado.putIfAbsent(tp.codigoNormalizado(), tp);
             for (String marca : extrairMarcas(tp.linha())) {
                 mapLinhas.computeIfAbsent(tp.codigoNormalizado(), k -> new LinkedHashSet<>()).add(marca);
@@ -242,7 +242,7 @@ public class AnaliseService {
 
         Map<String, Double> mapConsumo = new LinkedHashMap<>();
         Map<String, Set<String>> mapMarcas = new LinkedHashMap<>();
-        for (TecidoUtilizado tu : utilizados) {
+        for (AviamentoUtilizado tu : utilizados) {
             String cod = tu.codigoNormalizado();
             if (!cod.isBlank()) mapConsumo.merge(cod, tu.consumo(), Double::sum);
             for (String marca : extrairMarcas(tu.marca()))
@@ -250,16 +250,16 @@ public class AnaliseService {
         }
 
         List<ItemRelatorio> excessos = new ArrayList<>();
-        for (Map.Entry<String, TecidoPlanejado> entry : mapPlanejado.entrySet()) {
+        for (Map.Entry<String, AviamentoPlanejado> entry : mapPlanejado.entrySet()) {
             String codigo = entry.getKey();
-            TecidoPlanejado tp = entry.getValue();
+            AviamentoPlanejado tp = entry.getValue();
             double totalConsumido = mapConsumo.getOrDefault(codigo, 0.0);
-            if (totalConsumido > tp.totalAprovacaoTecido() && tp.totalAprovacaoTecido() > 0) {
+            if (totalConsumido > tp.totalAprovacaoAviamento() && tp.totalAprovacaoAviamento() > 0) {
                 String marcas = String.join(", ", mapMarcas.getOrDefault(codigo, Collections.emptySet()));
                 excessos.add(new ItemRelatorio(
                         tp.modelo(), tp.codigoSystextil(), tp.descricaoSystextil(),
-                        tp.totalAprovacaoTecido(), tp.aprovCont(),
-                        totalConsumido, totalConsumido - tp.totalAprovacaoTecido(),
+                        tp.totalAprovacaoAviamento(), tp.aprovCont(),
+                        totalConsumido, totalConsumido - tp.totalAprovacaoAviamento(),
                         false, marcas, "", colecaoLabel));
             }
         }
@@ -271,7 +271,7 @@ public class AnaliseService {
             if (!mapPlanejado.containsKey(codigo)) {
                 String codigoOriginal = utilizados.stream()
                         .filter(u -> u.codigoNormalizado().equals(codigo))
-                        .map(TecidoUtilizado::codigoSystextil)
+                        .map(AviamentoUtilizado::codigoSystextil)
                         .findFirst().orElse(codigo);
                 double totalConsumido = entry.getValue();
                 semPlanejamento.add(new ItemRelatorio(
@@ -284,18 +284,18 @@ public class AnaliseService {
         List<ItemRelatorio> nuncaUtilizados = new ArrayList<>();
         if (utilizados3 != null) {
             Set<String> codigosP3 = new LinkedHashSet<>();
-            for (TecidoUtilizado tu : utilizados3) {
+            for (AviamentoUtilizado tu : utilizados3) {
                 if (!tu.codigoNormalizado().isBlank()) codigosP3.add(tu.codigoNormalizado());
             }
-            for (Map.Entry<String, TecidoPlanejado> entry : mapPlanejado.entrySet()) {
+            for (Map.Entry<String, AviamentoPlanejado> entry : mapPlanejado.entrySet()) {
                 String codigo = entry.getKey();
                 if (!codigosP3.contains(codigo)) {
-                    TecidoPlanejado tp = entry.getValue();
+                    AviamentoPlanejado tp = entry.getValue();
                     String marcaNorm = String.join(", ", mapLinhas.getOrDefault(codigo, Collections.emptySet()));
                     if (marcaNorm.isBlank()) marcaNorm = tp.linha() != null ? tp.linha().trim() : "";
                     nuncaUtilizados.add(new ItemRelatorio(
                             tp.modelo(), tp.codigoSystextil(), tp.descricaoSystextil(),
-                            tp.totalAprovacaoTecido(), tp.aprovCont(),
+                            tp.totalAprovacaoAviamento(), tp.aprovCont(),
                             0, 0, false, "", marcaNorm, colecaoLabel));
                 }
             }
@@ -306,13 +306,13 @@ public class AnaliseService {
     }
 
     private ResultadoAnalise calcularResultadoCC(
-            List<TecidoPlanejado> planejados,
-            List<TecidoUtilizado> utilizados,
+            List<AviamentoPlanejado> planejados,
+            List<AviamentoUtilizado> utilizados,
             String colecaoLabel) throws IOException {
 
-        Map<String, TecidoPlanejado> mapPlanejado = new LinkedHashMap<>();
+        Map<String, AviamentoPlanejado> mapPlanejado = new LinkedHashMap<>();
         Map<String, Set<String>> mapLinhas = new LinkedHashMap<>();
-        for (TecidoPlanejado tp : planejados) {
+        for (AviamentoPlanejado tp : planejados) {
             mapPlanejado.putIfAbsent(tp.codigoNormalizado(), tp);
             for (String marca : extrairMarcas(tp.linha()))
                 mapLinhas.computeIfAbsent(tp.codigoNormalizado(), k -> new LinkedHashSet<>()).add(marca);
@@ -320,7 +320,7 @@ public class AnaliseService {
 
         Map<String, Double> mapConsumo = new LinkedHashMap<>();
         Map<String, Set<String>> mapMarcas = new LinkedHashMap<>();
-        for (TecidoUtilizado tu : utilizados) {
+        for (AviamentoUtilizado tu : utilizados) {
             String cod = tu.codigoNormalizado();
             if (!cod.isBlank()) mapConsumo.merge(cod, tu.consumo(), Double::sum);
             for (String marca : extrairMarcas(tu.marca()))
@@ -328,16 +328,16 @@ public class AnaliseService {
         }
 
         List<ItemRelatorio> excessos = new ArrayList<>();
-        for (Map.Entry<String, TecidoPlanejado> entry : mapPlanejado.entrySet()) {
+        for (Map.Entry<String, AviamentoPlanejado> entry : mapPlanejado.entrySet()) {
             String codigo = entry.getKey();
-            TecidoPlanejado tp = entry.getValue();
+            AviamentoPlanejado tp = entry.getValue();
             double totalConsumido = mapConsumo.getOrDefault(codigo, 0.0);
-            if (totalConsumido > tp.totalAprovacaoTecido() && tp.totalAprovacaoTecido() > 0) {
+            if (totalConsumido > tp.totalAprovacaoAviamento() && tp.totalAprovacaoAviamento() > 0) {
                 String marcas = String.join(", ", mapMarcas.getOrDefault(codigo, Collections.emptySet()));
                 excessos.add(new ItemRelatorio(
                         tp.modelo(), tp.codigoSystextil(), tp.descricaoSystextil(),
-                        tp.totalAprovacaoTecido(), tp.aprovCont(),
-                        totalConsumido, totalConsumido - tp.totalAprovacaoTecido(),
+                        tp.totalAprovacaoAviamento(), tp.aprovCont(),
+                        totalConsumido, totalConsumido - tp.totalAprovacaoAviamento(),
                         false, marcas, "", colecaoLabel));
             }
         }
@@ -349,7 +349,7 @@ public class AnaliseService {
             if (!mapPlanejado.containsKey(codigo)) {
                 String codigoOriginal = utilizados.stream()
                         .filter(u -> u.codigoNormalizado().equals(codigo))
-                        .map(TecidoUtilizado::codigoSystextil)
+                        .map(AviamentoUtilizado::codigoSystextil)
                         .findFirst().orElse(codigo);
                 double totalConsumido = entry.getValue();
                 semPlanejamento.add(new ItemRelatorio(
@@ -360,15 +360,15 @@ public class AnaliseService {
         semPlanejamento.sort(Comparator.comparingDouble(ItemRelatorio::totalModeloSomado).reversed());
 
         List<ItemRelatorio> nuncaUtilizados = new ArrayList<>();
-        for (Map.Entry<String, TecidoPlanejado> entry : mapPlanejado.entrySet()) {
+        for (Map.Entry<String, AviamentoPlanejado> entry : mapPlanejado.entrySet()) {
             String codigo = entry.getKey();
             if (!mapConsumo.containsKey(codigo)) {
-                TecidoPlanejado tp = entry.getValue();
+                AviamentoPlanejado tp = entry.getValue();
                 String marcaNorm = String.join(", ", mapLinhas.getOrDefault(codigo, Collections.emptySet()));
                 if (marcaNorm.isBlank()) marcaNorm = tp.linha() != null ? tp.linha().trim() : "";
                 nuncaUtilizados.add(new ItemRelatorio(
                         tp.modelo(), tp.codigoSystextil(), tp.descricaoSystextil(),
-                        tp.totalAprovacaoTecido(), tp.aprovCont(),
+                        tp.totalAprovacaoAviamento(), tp.aprovCont(),
                         0, 0, false, "", marcaNorm, colecaoLabel));
             }
         }

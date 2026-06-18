@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Central de Tecidos</title>
+    <title>Central de Aviamentos</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -139,7 +139,7 @@
 
         /* ── Filter bar ─────────────────────────────────────────────────── */
         .filter-bar {
-            display: flex; align-items: center; gap: 12px;
+            display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
             background: #f6f8fd; border: 1px solid #e4eaf6;
             border-radius: 12px; padding: 0.8rem 1.2rem;
             margin-bottom: 1.5rem;
@@ -147,13 +147,17 @@
         .filter-bar .fi-label {
             font-size: 0.82rem; font-weight: 600; color: #5c6b8a; white-space: nowrap;
         }
-        #filtroMarca, #filtroMarcaCC, #filtroMarcaSU {
-            border: 1.5px solid #dde3f0; border-radius: 8px;
-            font-size: 0.84rem; padding: 0.38rem 0.85rem;
-            color: #2d3a55; background: white; min-width: 220px;
-            transition: border-color .15s, box-shadow .15s;
+        .marca-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+        .marca-chip {
+            border: 1.5px solid #dde3f0; border-radius: 20px;
+            font-size: 0.78rem; font-weight: 500; padding: 0.28rem 0.85rem;
+            color: #5c6b8a; background: white; cursor: pointer;
+            transition: all .15s; line-height: 1.4;
         }
-        #filtroMarca:focus, #filtroMarcaCC:focus, #filtroMarcaSU:focus { border-color: #1a56db; box-shadow: 0 0 0 3px rgba(26,86,219,.1); outline: none; }
+        .marca-chip:hover { border-color: #1a56db; color: #1a56db; background: #f0f5ff; }
+        .marca-chip.marca-chip-ativo {
+            background: #1a56db; border-color: #1a56db; color: white; font-weight: 600;
+        }
 
         /* ── Result sections ────────────────────────────────────────────── */
         .result-block {
@@ -266,12 +270,12 @@
                     <i class="bi bi-grid-3x3-gap-fill"></i>
                 </div>
                 <div>
-                    <div class="brand-title">Central de Tecidos</div>
+                    <div class="brand-title">Central de Aviamentos</div>
                     <div class="brand-subtitle">Comparação de Planilhas</div>
                 </div>
             </div>
             <div style="display:flex;align-items:center;gap:0.75rem;">
-                <span class="header-pill">Tecidos Fora do Planejamento</span>
+                <span class="header-pill">Aviamentos Fora do Planejamento</span>
                 <button type="button"
                         data-bs-toggle="modal" data-bs-target="#modalInstrucao"
                         style="background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.35);
@@ -335,7 +339,7 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="main-sem-util-btn" data-bs-toggle="tab"
                     data-bs-target="#main-sem-util" type="button" role="tab">
-                <i class="bi bi-slash-circle me-2"></i>Tecidos S/ Utilização
+                <i class="bi bi-slash-circle me-2"></i>Aviamentos S/ Utilização
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -401,10 +405,10 @@
                 <div class="filter-bar" th:if="${not #lists.isEmpty(resultadoPL)}">
                     <i class="bi bi-funnel-fill" style="color:#1a56db;font-size:1rem"></i>
                     <span class="fi-label">Filtrar por Marca</span>
-                    <select id="filtroMarcaPL">
-                        <option value="">Todas as marcas</option>
-                        <option th:each="m : ${marcasValidas}" th:value="${m}" th:text="${m}"></option>
-                    </select>
+                    <div class="marca-chips" id="filtroMarcaPL">
+                        <button class="marca-chip marca-chip-ativo" data-marca="">Todas</button>
+                        <button class="marca-chip" th:each="m : ${marcasValidas}" th:data-marca="${m}" th:text="${m}" type="button"></button>
+                    </div>
                 </div>
 
                 <!-- Tabela: Divergências Peças Liberadas -->
@@ -417,14 +421,16 @@
                     <div class="table-responsive">
                         <table id="tabelaPL" class="table table-hover mb-0 w-100">
                             <colgroup>
-                                <col style="width:14%"> <col style="width:24%"> <col style="width:10%">
-                                <col style="width:10%"> <col style="width:9%">  <col style="width:14%">
-                                <col style="width:10%">
+                                <col style="width:11%"> <col style="width:11%"> <col style="width:19%">
+                                <col style="width:8%">  <col style="width:8%">  <col style="width:8%">
+                                <col style="width:7%">  <col style="width:12%"> <col style="width:8%">
                             </colgroup>
                             <thead>
                                 <tr>
+                                    <th>Modelo</th>
                                     <th>Código Systêxtil</th>
                                     <th>Descrição</th>
+                                    <th>Aprov/Cont</th>
                                     <th class="text-center">Qtd Aprov</th>
                                     <th class="text-center">Consumo Total</th>
                                     <th class="text-center">Diferença</th>
@@ -435,9 +441,11 @@
                             <tbody>
                                 <tr th:each="item : ${resultadoPL}"
                                     th:classappend="${item.diferenca > 5} ? 'excess-row-hi' : 'excess-row'">
+                                    <td th:text="${item.modelo}"></td>
                                     <td th:text="${item.codigoSystextil}"></td>
                                     <td th:text="${item.descricaoSystextil}"></td>
-                                    <td class="text-center" th:text="${item.totalAprovacaoTecido}"></td>
+                                    <td th:text="${item.aprovCont}"></td>
+                                    <td class="text-center" th:text="${item.totalAprovacaoAviamento}"></td>
                                     <td class="text-center fw-bold" th:text="${item.totalModeloSomado}"></td>
                                     <td class="text-center">
                                         <span class="diff-pill" th:text="'+' + ${item.diferenca}"></span>
@@ -473,7 +481,7 @@
                                style="font-size:2.8rem" th:if="${p1Existe}"></i>
                             <i class="bi bi-cloud-arrow-up"
                                style="font-size:2.8rem;color:#a0aec0" th:unless="${p1Existe}"></i>
-                            <div class="uc-title">Tecidos Aprovados</div>
+                            <div class="uc-title">Aviamentos Aprovados</div>
                             <div class="uc-sub text-success fw-semibold" th:if="${p1Existe}">
                                 <i class="bi bi-check-circle-fill me-1"></i>Carregado — clique para substituir
                             </div>
@@ -499,7 +507,7 @@
                             <i class="bi bi-cloud-arrow-up"
                                style="font-size:2.8rem;color:#a0aec0" th:unless="${p2Existe}"></i>
                             <div class="uc-title">
-                                Tecidos Utilizados
+                                Aviamentos Utilizados
                                 <div style="font-size:.78rem;font-weight:500;color:#7c8db0;margin-top:2px">Peças Liberadas</div>
                             </div>
                             <div class="uc-sub text-success fw-semibold" th:if="${p2Existe}">
@@ -527,7 +535,7 @@
                             <i class="bi bi-cloud-arrow-up"
                                style="font-size:2.8rem;color:#a0aec0" th:unless="${p3Existe}"></i>
                             <div class="uc-title">
-                                Tecidos Utilizados
+                                Aviamentos Utilizados
                                 <div style="font-size:.78rem;font-weight:500;color:#7c8db0;margin-top:2px">Coleção Completa</div>
                             </div>
                             <div class="uc-sub text-success fw-semibold" th:if="${p3Existe}">
@@ -576,7 +584,7 @@
                     <div class="col-12 col-lg-6" th:if="${marcasGraficoExcessosCC != null and !marcasGraficoExcessosCC.isEmpty()}">
                         <div class="p-3 rounded-4 bg-white shadow-sm h-100">
                             <div class="mb-2" style="color:#5c6b8a;font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px">
-                                Tecidos Acima do Planejado por Marca
+                                Aviamentos Acima do Planejado por Marca
                             </div>
                             <canvas id="graficaExcessosCC" style="max-height:200px"></canvas>
                         </div>
@@ -591,7 +599,7 @@
                             <div class="kpi-icon red"><i class="bi bi-exclamation-triangle-fill"></i></div>
                             <div>
                                 <div class="kpi-num red" th:text="${totalExcessosCC}">0</div>
-                                <div class="kpi-lbl">Tecidos em Excesso</div>
+                                <div class="kpi-lbl">Aviamentos em Excesso</div>
                             </div>
                         </div>
                     </div>
@@ -609,7 +617,7 @@
                 <div class="alert alert-success rounded-3"
                      th:if="${#lists.isEmpty(resultadoCC.excessos) and #lists.isEmpty(resultadoCC.nuncaUtilizados)}">
                     <i class="bi bi-check-circle-fill me-2"></i>
-                    Nenhum excesso encontrado! Todos os tecidos estão dentro do planejado.
+                    Nenhum excesso encontrado! Todos os aviamentos estão dentro do planejado.
                 </div>
 
                 <!-- Filtro por Marca -->
@@ -617,17 +625,17 @@
                      th:if="${not #lists.isEmpty(resultadoCC.excessos) or not #lists.isEmpty(resultadoCC.nuncaUtilizados)}">
                     <i class="bi bi-funnel-fill" style="color:#1a56db;font-size:1rem"></i>
                     <span class="fi-label">Filtrar por Marca</span>
-                    <select id="filtroMarcaCC">
-                        <option value="">Todas as marcas</option>
-                        <option th:each="m : ${marcasValidas}" th:value="${m}" th:text="${m}"></option>
-                    </select>
+                    <div class="marca-chips" id="filtroMarcaCC">
+                        <button class="marca-chip marca-chip-ativo" data-marca="">Todas</button>
+                        <button class="marca-chip" th:each="m : ${marcasValidas}" th:data-marca="${m}" th:text="${m}" type="button"></button>
+                    </div>
                 </div>
 
-                <!-- Tabela: Tecidos Acima do Planejado -->
+                <!-- Tabela: Aviamentos Acima do Planejado -->
                 <div class="result-block" id="bloco-excessos-cc" th:if="${not #lists.isEmpty(resultadoCC.excessos)}">
                     <div class="result-block-head">
                         <div class="rh-icon red"><i class="bi bi-exclamation-triangle-fill"></i></div>
-                        <span class="rh-title">Tecidos Acima do Planejado</span>
+                        <span class="rh-title">Aviamentos Acima do Planejado</span>
                         <span class="badge bg-danger rh-count"
                               th:text="${#lists.size(resultadoCC.excessos)}"></span>
                     </div>
@@ -657,7 +665,7 @@
                                     <td th:text="${item.codigoSystextil}"></td>
                                     <td th:text="${item.descricaoSystextil}"></td>
                                     <td th:text="${item.aprovCont}"></td>
-                                    <td class="text-center" th:text="${item.totalAprovacaoTecido}"></td>
+                                    <td class="text-center" th:text="${item.totalAprovacaoAviamento}"></td>
                                     <td class="text-center fw-bold" th:text="${item.totalModeloSomado}"></td>
                                     <td class="text-center">
                                         <span class="diff-pill" th:text="'+' + ${item.diferenca}"></span>
@@ -673,13 +681,13 @@
             </div>
         </div>
 
-        <!-- ── Aba: Tecidos S/ Utilização ──────────────────────────────── -->
+        <!-- ── Aba: Aviamentos S/ Utilização ──────────────────────────────── -->
         <div class="tab-pane fade panel" id="main-sem-util" role="tabpanel">
 
             <div th:if="${resultado == null or #lists.isEmpty(resultado.nuncaUtilizados)}"
                  class="text-muted" style="padding:2rem 0;font-size:.92rem;">
                 <i class="bi bi-info-circle me-2"></i>
-                Nenhum tecido planejado sem utilização encontrado.
+                Nenhum aviamento planejado sem utilização encontrado.
             </div>
 
             <div th:unless="${resultado == null or #lists.isEmpty(resultado.nuncaUtilizados)}">
@@ -713,16 +721,16 @@
                 <div class="filter-bar mb-3">
                     <i class="bi bi-funnel-fill" style="color:#1a56db;font-size:1rem"></i>
                     <span class="fi-label">Filtrar por Marca</span>
-                    <select id="filtroMarcaSU">
-                        <option value="">Todas as marcas</option>
-                        <option th:each="m : ${marcasValidas}" th:value="${m}" th:text="${m}"></option>
-                    </select>
+                    <div class="marca-chips" id="filtroMarcaSU">
+                        <button class="marca-chip marca-chip-ativo" data-marca="">Todas</button>
+                        <button class="marca-chip" th:each="m : ${marcasValidas}" th:data-marca="${m}" th:text="${m}" type="button"></button>
+                    </div>
                 </div>
 
                 <!-- Título acima da tabela -->
                 <div class="result-block-head mb-3">
                     <div class="rh-icon slate"><i class="bi bi-slash-circle-fill"></i></div>
-                    <span class="rh-title">Tecidos Planejados sem Utilização</span>
+                    <span class="rh-title">Aviamentos Planejados sem Utilização</span>
                     <span class="badge bg-secondary rh-count"
                           th:text="${#lists.size(resultado.nuncaUtilizados)}"></span>
                 </div>
@@ -750,7 +758,7 @@
                                 <td th:text="${item.modelo}"></td>
                                 <td th:text="${item.codigoSystextil}"></td>
                                 <td th:text="${item.descricaoSystextil}"></td>
-                                <td class="text-center" th:text="${item.totalAprovacaoTecido}"></td>
+                                <td class="text-center" th:text="${item.totalAprovacaoAviamento}"></td>
                                 <td th:text="${item.aprovCont}"></td>
                                 <td>
                                     <div class="obs-wrap">
@@ -781,7 +789,7 @@
             <div th:unless="${#lists.isEmpty(historicoAlteracoes)}">
                 <div class="result-block-head mb-3">
                     <div class="rh-icon" style="background:#fff3cd;"><i class="bi bi-graph-up" style="color:#856404;"></i></div>
-                    <span class="rh-title">Tecidos com Alteração de Quantidade Aprovada</span>
+                    <span class="rh-title">Aviamentos com Alteração de Quantidade Aprovada</span>
                     <span class="badge bg-warning text-dark rh-count"
                           th:text="${#lists.size(historicoAlteracoes)}"></span>
                 </div>
@@ -843,11 +851,11 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" style="font-size:0.92rem;line-height:1.7;">
-                <p>Entre na gerencial do fluxograma e, na aba <strong>"Visões"</strong>, procure por <strong>"Claude Tecido"</strong>. Irão aparecer 2 planilhas já organizadas em ordem.</p>
+                <p>Entre na gerencial do fluxograma e, na aba <strong>"Visões"</strong>, procure por <strong>"Claude Aviamento"</strong>. Irão aparecer 2 planilhas já organizadas em ordem.</p>
                 <p style="color:#c0392b;font-weight:600;"><i class="bi bi-exclamation-triangle-fill me-1"></i>Importante: Na Gerencial, precisa Requisitar reprocessamento de fórmulas, e só gerar as planilhas depois que esse processo esteja 100%.</p>
                 <ul>
-                    <li><strong>Planilha 1</strong> — Tecidos Aprovados</li>
-                    <li><strong>Planilha 2</strong> — Tecidos Utilizados - Coleção Completa</li>
+                    <li><strong>Planilha 1</strong> — Aviamentos Aprovados</li>
+                    <li><strong>Planilha 2</strong> — Aviamentos Utilizados - Coleção Completa</li>
                 </ul>
                 <p>Faça o download de cada uma em: <strong>Excel sem imagens e sem mesclar</strong></p>
                 <hr>
@@ -891,27 +899,52 @@
         }
     };
 
-    // Filtro por Marca na tabelaExcessos (col 7 — múltiplas marcas separadas por vírgula)
+    // Marcas ativas por filtro (acumulação multi-seleção)
+    var marcasAtivas = {
+        'filtroMarcaPL':  new Set(),
+        'filtroMarcaCC':  new Set(),
+        'filtroMarcaSU':  new Set()
+    };
+
+    function matchesFiltro(filtroId, colData) {
+        var ativos = marcasAtivas[filtroId];
+        if (!ativos || ativos.size === 0) return true;
+        var marcas = colData.split(',').map(function(m) { return m.trim(); });
+        for (var i = 0; i < marcas.length; i++) {
+            if (ativos.has(marcas[i])) return true;
+        }
+        return false;
+    }
+
+    // Filtro por Marca na tabelaPL (col 7 — Marca, após inserção de Aprov/Cont)
     $.fn.dataTable.ext.search.push(function(settings, data) {
-        if (settings.nTable.id !== 'tabelaExcessos') return true;
-        var filtro = $('#filtroMarca').val();
-        if (!filtro) return true;
-        var marcas = data[7].split(',').map(function(m) { return m.trim(); });
-        return marcas.indexOf(filtro) !== -1;
+        if (settings.nTable.id !== 'tabelaPL') return true;
+        return matchesFiltro('filtroMarcaPL', data[7]);
     });
 
-    // Filtro por Marca na tabelaSemUtil (col 6 — múltiplas marcas separadas por vírgula)
+    // Filtro por Marca na tabelaSemUtil (col 6)
     $.fn.dataTable.ext.search.push(function(settings, data) {
         if (settings.nTable.id !== 'tabelaSemUtil') return true;
-        var filtro = $('#filtroMarcaSU').val();
-        if (!filtro) return true;
-        var marcas = data[6].split(',').map(function(m) { return m.trim(); });
-        return marcas.indexOf(filtro) !== -1;
+        return matchesFiltro('filtroMarcaSU', data[6]);
     });
 
     $(document).ready(function () {
-        var tabelaExcessos = null;
-        var tabelaSemUtil  = null;
+        var tabelaExcessos   = null;
+        var tabelaSemUtil    = null;
+        var tabelaPL         = null;
+        var tabelaExcessosCC = null;
+
+        if ($('#tabelaPL').length) {
+            tabelaPL = $('#tabelaPL').DataTable({
+                language: dtLang,
+                pageLength: 100,
+                lengthChange: false,
+                autoWidth: false,
+                order: [[6, 'desc']],
+                columnDefs: [{ targets: [4, 5, 6], className: 'text-center' }]
+            });
+            // handler unificado via delegação — ver abaixo
+        }
 
         if ($('#tabelaExcessos').length) {
             tabelaExcessos = $('#tabelaExcessos').DataTable({
@@ -931,10 +964,10 @@
                 autoWidth: false,
                 order: [[1, 'asc']]
             });
-            $('#filtroMarcaSU').on('change', function() { tabelaSemUtil.draw(); });
+            // handler unificado via delegação — ver abaixo
         }
         if ($('#tabelaExcessosCC').length) {
-            var tabelaExcessosCC = $('#tabelaExcessosCC').DataTable({
+            tabelaExcessosCC = $('#tabelaExcessosCC').DataTable({
                 language: dtLang,
                 pageLength: 100,
                 lengthChange: false,
@@ -944,14 +977,7 @@
             });
             $.fn.dataTable.ext.search.push(function(settings, data) {
                 if (settings.nTable.id !== 'tabelaExcessosCC') return true;
-                var filtro = $('#filtroMarcaCC').val();
-                if (!filtro) return true;
-                var marcas = data[7].split(',').map(function(m) { return m.trim(); });
-                return marcas.indexOf(filtro) !== -1;
-            });
-            $('#filtroMarcaCC').on('change', function() {
-                tabelaExcessosCC.draw();
-                atualizarBtnExportar('filtroMarcaCC', 'btnExportarCC', '/exportar-colecao-completa');
+                return matchesFiltro('filtroMarcaCC', data[7]);
             });
         }
         if ($('#tabelaAnalise').length) {
@@ -965,9 +991,35 @@
             });
         }
 
-        $('#filtroMarca').on('change', function() {
-            if (tabelaExcessos) tabelaExcessos.draw();
-            atualizarBtnExportar('filtroMarca', 'btnExportar', '/exportar');
+        // Handler unificado para todos os chips de marca
+        $(document).on('click', '.marca-chip', function() {
+            var $btn     = $(this);
+            var filtroId = $btn.closest('.marca-chips').attr('id');
+            var marca    = $btn.data('marca');
+
+            if (marca === '') {
+                marcasAtivas[filtroId].clear();
+                $btn.closest('.marca-chips').find('.marca-chip').removeClass('marca-chip-ativo');
+                $btn.addClass('marca-chip-ativo');
+            } else {
+                if (marcasAtivas[filtroId].has(marca)) {
+                    marcasAtivas[filtroId].delete(marca);
+                    $btn.removeClass('marca-chip-ativo');
+                } else {
+                    marcasAtivas[filtroId].add(marca);
+                    $btn.addClass('marca-chip-ativo');
+                }
+                var $todas = $btn.closest('.marca-chips').find('[data-marca=""]');
+                if (marcasAtivas[filtroId].size > 0) {
+                    $todas.removeClass('marca-chip-ativo');
+                } else {
+                    $todas.addClass('marca-chip-ativo');
+                }
+            }
+
+            if (filtroId === 'filtroMarcaPL'  && tabelaPL)         tabelaPL.draw();
+            if (filtroId === 'filtroMarcaCC'  && tabelaExcessosCC) tabelaExcessosCC.draw();
+            if (filtroId === 'filtroMarcaSU'  && tabelaSemUtil)     tabelaSemUtil.draw();
         });
 
         // Auto-save ao sair do campo
@@ -1034,7 +1086,7 @@ function renderGrafico(canvasId, dados, cor) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    callbacks: { label: function(ctx) { return ' ' + ctx.parsed.y + ' tecido(s)'; } }
+                    callbacks: { label: function(ctx) { return ' ' + ctx.parsed.y + ' aviamento(s)'; } }
                 }
             },
             scales: {

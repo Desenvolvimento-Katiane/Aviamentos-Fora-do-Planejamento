@@ -1,6 +1,6 @@
 package com.example.ProjetoPadrao.model;
 
-public record TecidoUtilizado(
+public record AviamentoUtilizado(
         String modelo,
         String marca,
         String codigoSystextil,

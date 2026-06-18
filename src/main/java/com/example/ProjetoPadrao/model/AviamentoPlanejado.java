@@ -1,11 +1,11 @@
 package com.example.ProjetoPadrao.model;
 
-public record TecidoPlanejado(
+public record AviamentoPlanejado(
         String modelo,
         String codigoSystextil,
         String codigoNormalizado,
         String descricaoSystextil,
-        int totalAprovacaoTecido,
+        int totalAprovacaoAviamento,
         String aprovCont,
         String linha) {
 }

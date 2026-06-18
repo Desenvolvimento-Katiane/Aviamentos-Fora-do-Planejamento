@@ -2,7 +2,7 @@ package com.example.ProjetoPadrao.service;
 
 import com.example.ProjetoPadrao.model.ColecaoInfo;
 import com.example.ProjetoPadrao.model.ItemAlteracao;
-import com.example.ProjetoPadrao.model.TecidoPlanejado;
+import com.example.ProjetoPadrao.model.AviamentoPlanejado;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +26,7 @@ public class HistoricoService {
 
     static class SnapshotDto {
         public String timestamp;
-        public List<EntradaDto> tecidos = new ArrayList<>();
+        public List<EntradaDto> aviamentos = new ArrayList<>();
     }
 
     static class EntradaDto {
@@ -46,21 +46,21 @@ public class HistoricoService {
 
     // ── Com coleção ──────────────────────────────────────────────────────────
 
-    public void salvarSnapshot(List<TecidoPlanejado> planejados, String slug) throws IOException {
-        Map<String, TecidoPlanejado> map = new LinkedHashMap<>();
-        for (TecidoPlanejado tp : planejados) map.putIfAbsent(tp.codigoNormalizado(), tp);
+    public void salvarSnapshot(List<AviamentoPlanejado> planejados, String slug) throws IOException {
+        Map<String, AviamentoPlanejado> map = new LinkedHashMap<>();
+        for (AviamentoPlanejado tp : planejados) map.putIfAbsent(tp.codigoNormalizado(), tp);
 
         SnapshotDto snapshot = new SnapshotDto();
         snapshot.timestamp = LocalDateTime.now().format(FMT);
-        for (TecidoPlanejado tp : map.values()) {
+        for (AviamentoPlanejado tp : map.values()) {
             EntradaDto e = new EntradaDto();
             e.codigoNormalizado = tp.codigoNormalizado();
             e.codigoSystextil   = tp.codigoSystextil();
             e.descricao         = tp.descricaoSystextil();
             e.modelo            = tp.modelo();
             e.aprovCont         = tp.aprovCont();
-            e.total             = tp.totalAprovacaoTecido();
-            snapshot.tecidos.add(e);
+            e.total             = tp.totalAprovacaoAviamento();
+            snapshot.aviamentos.add(e);
         }
 
         List<SnapshotDto> lista = carregarSlug(slug);
@@ -82,21 +82,21 @@ public class HistoricoService {
 
     // ── Legado (lê de uploads/ raiz) ─────────────────────────────────────────
 
-    public void salvarSnapshot(List<TecidoPlanejado> planejados) throws IOException {
-        Map<String, TecidoPlanejado> map = new LinkedHashMap<>();
-        for (TecidoPlanejado tp : planejados) map.putIfAbsent(tp.codigoNormalizado(), tp);
+    public void salvarSnapshot(List<AviamentoPlanejado> planejados) throws IOException {
+        Map<String, AviamentoPlanejado> map = new LinkedHashMap<>();
+        for (AviamentoPlanejado tp : planejados) map.putIfAbsent(tp.codigoNormalizado(), tp);
 
         SnapshotDto snapshot = new SnapshotDto();
         snapshot.timestamp = LocalDateTime.now().format(FMT);
-        for (TecidoPlanejado tp : map.values()) {
+        for (AviamentoPlanejado tp : map.values()) {
             EntradaDto e = new EntradaDto();
             e.codigoNormalizado = tp.codigoNormalizado();
             e.codigoSystextil   = tp.codigoSystextil();
             e.descricao         = tp.descricaoSystextil();
             e.modelo            = tp.modelo();
             e.aprovCont         = tp.aprovCont();
-            e.total             = tp.totalAprovacaoTecido();
-            snapshot.tecidos.add(e);
+            e.total             = tp.totalAprovacaoAviamento();
+            snapshot.aviamentos.add(e);
         }
 
         List<SnapshotDto> lista = carregarLegado();
@@ -121,7 +121,7 @@ public class HistoricoService {
         Map<String, Integer>      ultimoValor  = new LinkedHashMap<>();
 
         for (SnapshotDto snap : snapshots) {
-            for (EntradaDto e : snap.tecidos) {
+            for (EntradaDto e : snap.aviamentos) {
                 String cod  = e.codigoNormalizado;
                 int    val  = e.total;
                 int    prev = ultimoValor.getOrDefault(cod, -1);

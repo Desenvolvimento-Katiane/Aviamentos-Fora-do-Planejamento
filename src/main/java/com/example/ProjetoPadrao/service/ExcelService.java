@@ -1,8 +1,8 @@
 package com.example.ProjetoPadrao.service;
 
 import com.example.ProjetoPadrao.model.ItemRelatorio;
-import com.example.ProjetoPadrao.model.TecidoPlanejado;
-import com.example.ProjetoPadrao.model.TecidoUtilizado;
+import com.example.ProjetoPadrao.model.AviamentoPlanejado;
+import com.example.ProjetoPadrao.model.AviamentoUtilizado;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -81,34 +81,34 @@ public class ExcelService {
         return null;
     }
 
-    public List<TecidoPlanejado> lerPlanilha1() throws IOException {
+    public List<AviamentoPlanejado> lerPlanilha1() throws IOException {
         return lerPlanilha1FromPath(getUploadPath().resolve("planilha1.xlsx"));
     }
 
-    public List<TecidoUtilizado> lerPlanilha2() throws IOException {
+    public List<AviamentoUtilizado> lerPlanilha2() throws IOException {
         return lerPlanilhaUtilizadoFromPath(getUploadPath().resolve("planilha2.xlsx"), "Planilha 2");
     }
 
-    public List<TecidoUtilizado> lerPlanilha3() throws IOException {
+    public List<AviamentoUtilizado> lerPlanilha3() throws IOException {
         return lerPlanilhaUtilizadoFromPath(getUploadPath().resolve("planilha3.xlsx"), "Planilha 3");
     }
 
-    public List<TecidoPlanejado> lerPlanilha1(String slug) throws IOException {
+    public List<AviamentoPlanejado> lerPlanilha1(String slug) throws IOException {
         Path path = colecaoService.getColecaoDir(slug).resolve("planilha1.xlsx");
         return lerPlanilha1FromPath(path);
     }
 
-    public List<TecidoUtilizado> lerPlanilha2(String slug) throws IOException {
+    public List<AviamentoUtilizado> lerPlanilha2(String slug) throws IOException {
         Path path = colecaoService.getColecaoDir(slug).resolve("planilha2.xlsx");
         return lerPlanilhaUtilizadoFromPath(path, "Planilha 2");
     }
 
-    public List<TecidoUtilizado> lerPlanilha3(String slug) throws IOException {
+    public List<AviamentoUtilizado> lerPlanilha3(String slug) throws IOException {
         Path path = colecaoService.getColecaoDir(slug).resolve("planilha3.xlsx");
         return lerPlanilhaUtilizadoFromPath(path, "Planilha 3");
     }
 
-    private List<TecidoPlanejado> lerPlanilha1FromPath(Path path) throws IOException {
+    private List<AviamentoPlanejado> lerPlanilha1FromPath(Path path) throws IOException {
         try (InputStream is = Files.newInputStream(path);
              Workbook wb = WorkbookFactory.create(is)) {
             Sheet sheet = wb.getSheetAt(0);
@@ -121,16 +121,16 @@ public class ExcelService {
             int colCodigo    = getColIndex(headers, "codigo systextil");
             int colDescricao = getColIndex(headers, "descricao systextil");
             int colTotal     = getColIndex(headers, "qtd aprov");
-            if (colTotal < 0) colTotal = getColIndex(headers, "total aprovacao tecido");
+            if (colTotal < 0) colTotal = getColIndex(headers, "total aprovacao aviamento");
             int colAprov     = getColIndex(headers, "aprov/cont");
             int colLinha     = getColIndex(headers, "linha");
-            List<TecidoPlanejado> list = new ArrayList<>();
+            List<AviamentoPlanejado> list = new ArrayList<>();
             for (int i = headerRowIndex + 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
                 String codigo = readStringCell(row.getCell(colCodigo), evaluator);
                 if (codigo.isBlank()) continue;
-                list.add(new TecidoPlanejado(
+                list.add(new AviamentoPlanejado(
                         colModelo >= 0    ? readStringCell(row.getCell(colModelo), evaluator)    : "",
                         codigo,
                         normalizarCodigo(codigo),
@@ -144,7 +144,7 @@ public class ExcelService {
         }
     }
 
-    private List<TecidoUtilizado> lerPlanilhaUtilizadoFromPath(Path path, String nome) throws IOException {
+    private List<AviamentoUtilizado> lerPlanilhaUtilizadoFromPath(Path path, String nome) throws IOException {
         try (InputStream is = Files.newInputStream(path);
              Workbook wb = WorkbookFactory.create(is)) {
             Sheet sheet = wb.getSheetAt(0);
@@ -157,14 +157,14 @@ public class ExcelService {
             int colMarca   = getColIndex(headers, "marca");
             int colCodigo  = getColIndex(headers, "codigo systextil");
             int colConsumo = getColIndex(headers, "consumo");
-            List<TecidoUtilizado> list = new ArrayList<>();
+            List<AviamentoUtilizado> list = new ArrayList<>();
             for (int i = headerRowIndex + 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
                 String codigo = readStringCell(row.getCell(colCodigo), evaluator);
                 if (codigo.isBlank()) continue;
                 double consumo = colConsumo >= 0 ? readDoubleCell(row.getCell(colConsumo), evaluator) : 0.0;
-                list.add(new TecidoUtilizado(
+                list.add(new AviamentoUtilizado(
                         colModelo >= 0 ? readStringCell(row.getCell(colModelo), evaluator) : "",
                         colMarca >= 0  ? readStringCell(row.getCell(colMarca), evaluator)  : "",
                         codigo,
@@ -192,7 +192,7 @@ public class ExcelService {
                 for (int c = 0; c < 7; c++) r.createCell(c).setCellStyle(rowStyle);
                 r.getCell(0).setCellValue(item.codigoSystextil());
                 r.getCell(1).setCellValue(item.descricaoSystextil());
-                r.getCell(2).setCellValue(item.totalAprovacaoTecido());
+                r.getCell(2).setCellValue(item.totalAprovacaoAviamento());
                 r.getCell(3).setCellValue(item.totalModeloSomado());
                 r.getCell(4).setCellValue("+" + item.diferenca());
                 r.getCell(5).setCellValue(item.marcas());
@@ -224,7 +224,7 @@ public class ExcelService {
                 r.getCell(0).setCellValue(item.modelo());
                 r.getCell(1).setCellValue(item.codigoSystextil());
                 r.getCell(2).setCellValue(item.descricaoSystextil());
-                r.getCell(3).setCellValue(item.totalAprovacaoTecido());
+                r.getCell(3).setCellValue(item.totalAprovacaoAviamento());
                 r.getCell(4).setCellValue(item.aprovCont());
                 r.getCell(5).setCellValue(item.linha());
                 r.getCell(6).setCellValue(observacoes.getOrDefault(item.codigoSystextil(), ""));

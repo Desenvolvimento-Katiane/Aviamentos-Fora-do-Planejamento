@@ -4,7 +4,7 @@ public record ItemRelatorio(
         String modelo,
         String codigoSystextil,
         String descricaoSystextil,
-        int totalAprovacaoTecido,
+        int totalAprovacaoAviamento,
         String aprovCont,
         double totalModeloSomado,
         double diferenca,

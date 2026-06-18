@@ -23,7 +23,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Controller
-public class TecidoController {
+public class AviamentoController {
 
     @Autowired private ExcelService excelService;
     @Autowired private AnaliseService analiseService;
@@ -289,7 +289,7 @@ public class TecidoController {
         if (marca != null && !marca.isBlank()) resultado = filtrarPorMarca(resultado, marca.trim());
 
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-        response.setHeader("Content-Disposition", "attachment; filename=\"relatorio-tecidos.xlsx\"");
+        response.setHeader("Content-Disposition", "attachment; filename=\"relatorio-aviamentos.xlsx\"");
         excelService.gerarExcel(resultado.excessos(), resultado.semPlanejamento(),
                 resultado.nuncaUtilizados(), observacoes, response.getOutputStream());
     }
