@@ -300,6 +300,10 @@
         <i class="bi bi-exclamation-triangle-fill me-2"></i><span th:text="${erro}"></span>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
+    <div th:if="${erroHistorico}" class="alert alert-warning alert-dismissible fade show rounded-3 mb-3" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i><span th:text="${erroHistorico}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
 
     <!-- ── Barra de coleção ─────────────────────────────────────────────── -->
     <div class="colecao-bar" th:if="${colecoes != null and !colecoes.isEmpty()}">
@@ -446,9 +450,9 @@
                                     <td th:text="${item.descricaoSystextil}"></td>
                                     <td th:text="${item.aprovCont}"></td>
                                     <td class="text-center" th:text="${item.totalAprovacaoAviamento}"></td>
-                                    <td class="text-center fw-bold" th:text="${item.totalModeloSomado}"></td>
+                                    <td class="text-center fw-bold" th:text="${#numbers.formatDecimal(item.totalModeloSomado, 1, 'POINT', 3, 'COMMA')}"></td>
                                     <td class="text-center">
-                                        <span class="diff-pill" th:text="'+' + ${item.diferenca}"></span>
+                                        <span class="diff-pill" th:text="${'+' + #numbers.formatDecimal(item.diferenca, 1, 'POINT', 3, 'COMMA')}"></span>
                                     </td>
                                     <td th:text="${item.marcas}"></td>
                                     <td th:text="${not #strings.isEmpty(item.colecao) ? item.colecao : (colecaoAtual != null ? colecaoAtual.nomeOriginal : '')}"></td>
@@ -666,9 +670,9 @@
                                     <td th:text="${item.descricaoSystextil}"></td>
                                     <td th:text="${item.aprovCont}"></td>
                                     <td class="text-center" th:text="${item.totalAprovacaoAviamento}"></td>
-                                    <td class="text-center fw-bold" th:text="${item.totalModeloSomado}"></td>
+                                    <td class="text-center fw-bold" th:text="${#numbers.formatDecimal(item.totalModeloSomado, 1, 'POINT', 3, 'COMMA')}"></td>
                                     <td class="text-center">
-                                        <span class="diff-pill" th:text="'+' + ${item.diferenca}"></span>
+                                        <span class="diff-pill" th:text="${'+' + #numbers.formatDecimal(item.diferenca, 1, 'POINT', 3, 'COMMA')}"></span>
                                     </td>
                                     <td th:text="${item.marcas}"></td>
                                 </tr>

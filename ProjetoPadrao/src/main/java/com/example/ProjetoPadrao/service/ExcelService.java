@@ -193,8 +193,8 @@ public class ExcelService {
                 r.getCell(0).setCellValue(item.codigoSystextil());
                 r.getCell(1).setCellValue(item.descricaoSystextil());
                 r.getCell(2).setCellValue(item.totalAprovacaoAviamento());
-                r.getCell(3).setCellValue(item.totalModeloSomado());
-                r.getCell(4).setCellValue("+" + item.diferenca());
+                r.getCell(3).setCellValue(Math.round(item.totalModeloSomado() * 1000.0) / 1000.0);
+                r.getCell(4).setCellValue("+" + (Math.round(item.diferenca() * 1000.0) / 1000.0));
                 r.getCell(5).setCellValue(item.marcas());
                 r.getCell(6).setCellValue(item.colecao());
             }
@@ -207,9 +207,10 @@ public class ExcelService {
                            List<ItemRelatorio> nuncaUtilizados, Map<String, String> observacoes,
                            OutputStream os) throws IOException {
         try (Workbook wb = new XSSFWorkbook()) {
-            CellStyle headerStyle = createHeaderStyle(wb);
-            CellStyle excessStyle = createExcessStyle(wb);
-            CellStyle nuncaStyle  = createNuncaUtilStyle(wb);
+            CellStyle headerStyle   = createHeaderStyle(wb);
+            CellStyle excessStyle   = createExcessStyle(wb);
+            CellStyle nuncaStyle    = createNuncaUtilStyle(wb);
+            CellStyle defaultStyle  = wb.createCellStyle();
 
             // Aba 1: Nunca Utilizados
             Sheet sheet3 = wb.createSheet("Nunca Utilizados");
@@ -220,7 +221,7 @@ public class ExcelService {
             int rowNum = 1;
             for (ItemRelatorio item : nuncaUtilizados) {
                 Row r = sheet3.createRow(rowNum++);
-                for (int c = 0; c < 7; c++) r.createCell(c).setCellStyle(nuncaStyle);
+                for (int c = 0; c < 7; c++) r.createCell(c).setCellStyle(c == 4 ? defaultStyle : nuncaStyle);
                 r.getCell(0).setCellValue(item.modelo());
                 r.getCell(1).setCellValue(item.codigoSystextil());
                 r.getCell(2).setCellValue(item.descricaoSystextil());
