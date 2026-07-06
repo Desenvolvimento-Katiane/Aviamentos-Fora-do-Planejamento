@@ -15,15 +15,11 @@ import java.util.*;
 @Service
 public class AnaliseService {
 
-    private static final List<String> MARCAS_VALIDAS = List.of(
-        "Animê Kids", "Animê Petite", "Animê Bebê",
-        "Momi Kids",  "Momi Bebê",   "Momi Mini",
-        "Authoria",   "Youccie",
-        "Bimbi Menina", "Bimbi Menino"
-    );
+    @Autowired
+    private MarcaService marcaService;
 
     public List<String> getMarcasValidas() {
-        return MARCAS_VALIDAS;
+        return marcaService.listar();
     }
 
     private static String normalizarTexto(String s) {
@@ -32,11 +28,11 @@ public class AnaliseService {
                 .toLowerCase();
     }
 
-    private static Set<String> extrairMarcas(String rawMarca) {
+    private Set<String> extrairMarcas(String rawMarca) {
         if (rawMarca == null || rawMarca.isBlank()) return Collections.emptySet();
         String inputNorm = normalizarTexto(rawMarca);
         Set<String> encontradas = new LinkedHashSet<>();
-        for (String marca : MARCAS_VALIDAS) {
+        for (String marca : marcaService.listar()) {
             if (inputNorm.contains(normalizarTexto(marca))) {
                 encontradas.add(marca);
             }
@@ -162,6 +158,43 @@ public class AnaliseService {
             String cod = tu.codigoNormalizado();
             if (!cod.isBlank()) result.merge(cod, tu.consumo(), Double::sum);
         }
+        return result;
+    }
+
+    // ── Quantidade de modelos distintos por código (P3) ──────────────────────
+
+    public Map<String, Long> contarModelosPorCodigoP3(String slug) throws IOException {
+        return contarModelosDistintos(excelService.lerPlanilha3(slug));
+    }
+
+    public Map<String, Long> contarModelosPorCodigoP3Todas() {
+        Map<String, Set<String>> modelosPorCodigo = new LinkedHashMap<>();
+        for (ColecaoInfo c : colecaoService.listarColecoes()) {
+            if (!c.p3Existe()) continue;
+            try {
+                acumularModelos(excelService.lerPlanilha3(c.slug()), modelosPorCodigo);
+            } catch (IOException ignored) {}
+        }
+        return finalizarContagem(modelosPorCodigo);
+    }
+
+    private Map<String, Long> contarModelosDistintos(List<AviamentoUtilizado> lista) {
+        Map<String, Set<String>> modelosPorCodigo = new LinkedHashMap<>();
+        acumularModelos(lista, modelosPorCodigo);
+        return finalizarContagem(modelosPorCodigo);
+    }
+
+    private void acumularModelos(List<AviamentoUtilizado> lista, Map<String, Set<String>> modelosPorCodigo) {
+        for (AviamentoUtilizado tu : lista) {
+            String cod = tu.codigoNormalizado();
+            if (cod.isBlank() || tu.modelo() == null || tu.modelo().isBlank()) continue;
+            modelosPorCodigo.computeIfAbsent(cod, ignored -> new LinkedHashSet<>()).add(tu.modelo().trim());
+        }
+    }
+
+    private Map<String, Long> finalizarContagem(Map<String, Set<String>> modelosPorCodigo) {
+        Map<String, Long> result = new LinkedHashMap<>();
+        modelosPorCodigo.forEach((cod, modelos) -> result.put(cod, (long) modelos.size()));
         return result;
     }
 

@@ -58,6 +58,10 @@ public class ExcelService {
         }
     }
 
+    public void removerArquivoColecao(String slug, String nomeDestino) throws IOException {
+        Files.deleteIfExists(colecaoService.getColecaoDir(slug).resolve(nomeDestino));
+    }
+
     public String lerColecaoDoArquivo(MultipartFile file) {
         try (InputStream is = file.getInputStream();
              Workbook wb = WorkbookFactory.create(is)) {
@@ -183,7 +187,7 @@ public class ExcelService {
 
             Sheet sheet = wb.createSheet("Peças Liberadas");
             String[] headers = {"Código Systêxtil", "Descrição Systêxtil",
-                                 "Qtd Aprov", "Consumo Total", "Diferença", "Marca", "Coleção"};
+                                 "Qtd Aprov", "Consumo pçs Liberadas", "Diferença", "Marca", "Coleção"};
             createHeaderRow(sheet, headers, headerStyle);
 
             int rowNum = 1;
@@ -212,7 +216,44 @@ public class ExcelService {
             CellStyle nuncaStyle    = createNuncaUtilStyle(wb);
             CellStyle defaultStyle  = wb.createCellStyle();
 
-            // Aba 1: Nunca Utilizados
+            // Aba 1: Aviamentos em Excesso
+            Sheet sheet1 = wb.createSheet("Aviamentos em Excesso");
+            String[] headers1 = {"Modelo", "Código Systêxtil", "Descrição Systêxtil", "Aprov/Cont",
+                                  "Total Aprovado", "Consumo Total", "Diferença", "Marca", "Coleção"};
+            createHeaderRow(sheet1, headers1, headerStyle);
+
+            int rowNum1 = 1;
+            for (ItemRelatorio item : excessos) {
+                Row r = sheet1.createRow(rowNum1++);
+                for (int c = 0; c < 9; c++) r.createCell(c).setCellStyle(excessStyle);
+                r.getCell(0).setCellValue(item.modelo());
+                r.getCell(1).setCellValue(item.codigoSystextil());
+                r.getCell(2).setCellValue(item.descricaoSystextil());
+                r.getCell(3).setCellValue(item.aprovCont());
+                r.getCell(4).setCellValue(item.totalAprovacaoAviamento());
+                r.getCell(5).setCellValue(Math.round(item.totalModeloSomado() * 1000.0) / 1000.0);
+                r.getCell(6).setCellValue(Math.round(item.diferenca() * 1000.0) / 1000.0);
+                r.getCell(7).setCellValue(item.marcas());
+                r.getCell(8).setCellValue(item.colecao());
+            }
+            autoSizeColumns(sheet1, 9);
+
+            // Aba 2: Consumidos sem Planejamento
+            Sheet sheet2 = wb.createSheet("Sem Planejamento");
+            String[] headers2 = {"Código Systêxtil", "Consumo Total", "Coleção"};
+            createHeaderRow(sheet2, headers2, headerStyle);
+
+            int rowNum2 = 1;
+            for (ItemRelatorio item : semPlanejamento) {
+                Row r = sheet2.createRow(rowNum2++);
+                for (int c = 0; c < 3; c++) r.createCell(c).setCellStyle(excessStyle);
+                r.getCell(0).setCellValue(item.codigoSystextil());
+                r.getCell(1).setCellValue(Math.round(item.totalModeloSomado() * 1000.0) / 1000.0);
+                r.getCell(2).setCellValue(item.colecao());
+            }
+            autoSizeColumns(sheet2, 3);
+
+            // Aba 3: Nunca Utilizados
             Sheet sheet3 = wb.createSheet("Nunca Utilizados");
             String[] headers3 = {"Modelo", "Código Systêxtil", "Descrição Systêxtil",
                                   "Total Aprovado", "Aprov/Cont", "Linha", "Observação"};

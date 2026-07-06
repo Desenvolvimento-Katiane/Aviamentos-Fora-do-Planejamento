@@ -1,5 +1,6 @@
 package com.example.ProjetoPadrao.controller;
 
+import com.example.ProjetoPadrao.model.AviamentoPlanejado;
 import com.example.ProjetoPadrao.model.ColecaoInfo;
 import com.example.ProjetoPadrao.model.ItemAlteracao;
 import com.example.ProjetoPadrao.model.ItemRelatorio;
@@ -30,6 +31,7 @@ public class AviamentoController {
     @Autowired private ObservacaoService observacaoService;
     @Autowired private HistoricoService historicoService;
     @Autowired private ColecaoService colecaoService;
+    @Autowired private MarcaService marcaService;
 
     private static final DateTimeFormatter FMT_CARD = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     private static final String TODAS = "todas";
@@ -118,15 +120,11 @@ public class AviamentoController {
                         model.addAttribute("totalNuncaUtilizadosCC", resultadoCC.nuncaUtilizados().size());
                         model.addAttribute("marcasGraficoExcessosCC", buildMarcasMap(resultadoCC.excessos(), true));
                         model.addAttribute("marcasGraficoNuncaCC", buildMarcasMap(resultadoCC.nuncaUtilizados(), false));
+                        List<AviamentoPlanejado> planejadosPL = excelService.lerPlanilha1(colecaoAtual.slug());
                         Map<String, Double> p3Counts = analiseService.contarReferenciasP3(colecaoAtual.slug());
-                        Map<String, Double> utilizadoMap = new LinkedHashMap<>();
-                        for (ItemAlteracao item : historicoAlteracoes) {
-                            if (item.codigoSystextil() != null) {
-                                String normKey = item.codigoSystextil().trim().toLowerCase();
-                                utilizadoMap.put(item.codigoSystextil(), p3Counts.getOrDefault(normKey, 0.0));
-                            }
-                        }
-                        model.addAttribute("utilizadoMap", utilizadoMap);
+                        model.addAttribute("utilizadoMap", buildUtilizadoMap(planejadosPL, p3Counts));
+                        Map<String, Long> modelosPorCodigo = analiseService.contarModelosPorCodigoP3(colecaoAtual.slug());
+                        model.addAttribute("referenciasMap", buildReferenciasMap(planejadosPL, modelosPorCodigo));
                     } catch (IOException e) {
                         model.addAttribute("erroCC", "Erro ao carregar Coleção Completa: " + e.getMessage());
                     }
@@ -161,7 +159,16 @@ public class AviamentoController {
                 model.addAttribute("totalNuncaUtilizadosCC", resultadoCC.nuncaUtilizados().size());
                 model.addAttribute("marcasGraficoExcessosCC", buildMarcasMap(resultadoCC.excessos(), true));
                 model.addAttribute("marcasGraficoNuncaCC", buildMarcasMap(resultadoCC.nuncaUtilizados(), false));
-                model.addAttribute("utilizadoMap", analiseService.contarReferenciasP3Todas());
+
+                List<AviamentoPlanejado> planejadosTodos = new ArrayList<>();
+                for (ColecaoInfo c : colecaoService.listarColecoes()) {
+                    if (!c.p1Existe()) continue;
+                    try { planejadosTodos.addAll(excelService.lerPlanilha1(c.slug())); } catch (IOException ignored) {}
+                }
+                model.addAttribute("utilizadoMap",
+                        buildUtilizadoMap(planejadosTodos, analiseService.contarReferenciasP3Todas()));
+                model.addAttribute("referenciasMap",
+                        buildReferenciasMap(planejadosTodos, analiseService.contarModelosPorCodigoP3Todas()));
             } catch (IOException ignored) {}
 
         } else {
@@ -201,9 +208,16 @@ public class AviamentoController {
             String agora = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy 'às' HH:mm"));
 
             boolean algumEnviado = false;
-            if (p1 != null && !p1.isEmpty()) {
+            boolean novaPlanilha1 = p1 != null && !p1.isEmpty();
+            if (novaPlanilha1) {
                 excelService.salvarArquivoColecao(p1, slug, "planilha1.xlsx");
                 algumEnviado = true;
+
+                // Uma nova planilha1 invalida as planilhas 2 e 3 anteriores:
+                // é preciso reenviar as 3 juntas para os dados saírem corretos.
+                excelService.removerArquivoColecao(slug, "planilha2.xlsx");
+                excelService.removerArquivoColecao(slug, "planilha3.xlsx");
+                Files.deleteIfExists(flagPath(slug));
             }
             if (p2 != null && !p2.isEmpty()) {
                 excelService.salvarArquivoColecao(p2, slug, "planilha2.xlsx");
@@ -239,8 +253,12 @@ public class AviamentoController {
                     }
                 }
 
-                redirectAttributes.addFlashAttribute("sucesso",
-                        "Planilha enviada com sucesso para a coleção \"" + nomeColecao + "\".");
+                boolean p2ouP3Reenviada = (p2 != null && !p2.isEmpty()) || (p3 != null && !p3.isEmpty());
+                String msg = "Planilha enviada com sucesso para a coleção \"" + nomeColecao + "\".";
+                if (novaPlanilha1 && !p2ouP3Reenviada) {
+                    msg += " As planilhas 2 e 3 anteriores foram limpas: reenvie as 3 planilhas juntas para os dados saírem corretos.";
+                }
+                redirectAttributes.addFlashAttribute("sucesso", msg);
                 redirectAttributes.addFlashAttribute("stayOnUpload", true);
             }
         } catch (IOException e) {
@@ -270,9 +288,39 @@ public class AviamentoController {
         }
     }
 
+    @PostMapping("/marcas/adicionar")
+    public String adicionarMarca(
+            @RequestParam String nome,
+            @RequestParam(required = false) String colecao,
+            RedirectAttributes redirectAttributes) {
+        try {
+            marcaService.adicionar(nome);
+            redirectAttributes.addFlashAttribute("sucesso", "Marca \"" + nome.trim() + "\" adicionada.");
+        } catch (IOException e) {
+            redirectAttributes.addFlashAttribute("erro", "Erro ao adicionar marca: " + e.getMessage());
+        }
+        redirectAttributes.addFlashAttribute("stayOnUpload", true);
+        return "redirect:/" + (colecao != null && !colecao.isBlank() ? "?colecao=" + colecao : "");
+    }
+
+    @PostMapping("/marcas/remover")
+    public String removerMarca(
+            @RequestParam String nome,
+            @RequestParam(required = false) String colecao,
+            RedirectAttributes redirectAttributes) {
+        try {
+            marcaService.remover(nome);
+            redirectAttributes.addFlashAttribute("sucesso", "Marca \"" + nome + "\" removida.");
+        } catch (IOException e) {
+            redirectAttributes.addFlashAttribute("erro", "Erro ao remover marca: " + e.getMessage());
+        }
+        redirectAttributes.addFlashAttribute("stayOnUpload", true);
+        return "redirect:/" + (colecao != null && !colecao.isBlank() ? "?colecao=" + colecao : "");
+    }
+
     @GetMapping("/exportar")
     public void exportar(@RequestParam(required = false) String colecao,
-                         @RequestParam(required = false) String marca,
+                         @RequestParam(required = false) List<String> marca,
                          HttpServletResponse response) throws IOException {
         ResultadoAnalise resultado;
         Map<String, String> observacoes = new LinkedHashMap<>();
@@ -289,7 +337,7 @@ public class AviamentoController {
             try { observacoes = observacaoService.carregar(slug); } catch (IOException ignored) {}
         }
 
-        if (marca != null && !marca.isBlank()) resultado = filtrarPorMarca(resultado, marca.trim());
+        if (marca != null && !marca.isEmpty()) resultado = filtrarPorMarca(resultado, marca);
 
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader("Content-Disposition", "attachment; filename=\"relatorio-aviamentos.xlsx\"");
@@ -299,7 +347,7 @@ public class AviamentoController {
 
     @GetMapping("/exportar-colecao-completa")
     public void exportarColecaoCompleta(@RequestParam(required = false) String colecao,
-                                        @RequestParam(required = false) String marca,
+                                        @RequestParam(required = false) List<String> marca,
                                         HttpServletResponse response) throws IOException {
         ResultadoAnalise resultado;
         Map<String, String> observacoes = new LinkedHashMap<>();
@@ -316,7 +364,7 @@ public class AviamentoController {
             try { observacoes = observacaoService.carregar(slug); } catch (IOException ignored) {}
         }
 
-        if (marca != null && !marca.isBlank()) resultado = filtrarPorMarca(resultado, marca.trim());
+        if (marca != null && !marca.isEmpty()) resultado = filtrarPorMarca(resultado, marca);
 
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader("Content-Disposition", "attachment; filename=\"relatorio-colecao-completa.xlsx\"");
@@ -326,6 +374,7 @@ public class AviamentoController {
 
     @GetMapping("/exportar-pecas-liberadas")
     public void exportarPecasLiberadas(@RequestParam(required = false) String colecao,
+                                       @RequestParam(required = false) List<String> marca,
                                        HttpServletResponse response) throws IOException {
         List<ItemRelatorio> resultado;
         if (TODAS.equals(colecao)) {
@@ -335,27 +384,50 @@ public class AviamentoController {
             if (slug == null) { response.sendError(HttpServletResponse.SC_NOT_FOUND); return; }
             resultado = analiseService.analisarPecasLiberadas(slug);
         }
+        if (marca != null && !marca.isEmpty()) {
+            resultado = resultado.stream()
+                    .filter(i -> contemMarca(i.marcas(), marca))
+                    .collect(Collectors.toList());
+        }
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader("Content-Disposition", "attachment; filename=\"pecas-liberadas.xlsx\"");
         excelService.gerarExcelPecasLiberadas(resultado, response.getOutputStream());
     }
 
-    private ResultadoAnalise filtrarPorMarca(ResultadoAnalise original, String marca) {
+    private ResultadoAnalise filtrarPorMarca(ResultadoAnalise original, List<String> marcas) {
         List<ItemRelatorio> excessos = original.excessos().stream()
-                .filter(i -> contemMarca(i.marcas(), marca))
+                .filter(i -> contemMarca(i.marcas(), marcas))
                 .collect(Collectors.toList());
         List<ItemRelatorio> nuncaUtil = original.nuncaUtilizados().stream()
-                .filter(i -> contemMarca(i.linha(), marca))
+                .filter(i -> contemMarca(i.linha(), marcas))
                 .collect(Collectors.toList());
         return new ResultadoAnalise(excessos, original.semPlanejamento(), nuncaUtil);
     }
 
-    private boolean contemMarca(String campo, String marca) {
+    private boolean contemMarca(String campo, List<String> marcas) {
         if (campo == null || campo.isBlank()) return false;
-        for (String m : campo.split(",")) {
-            if (m.trim().equalsIgnoreCase(marca)) return true;
+        Set<String> campoMarcas = new HashSet<>();
+        for (String m : campo.split(",")) campoMarcas.add(m.trim().toLowerCase());
+        for (String marca : marcas) {
+            if (campoMarcas.contains(marca.trim().toLowerCase())) return true;
         }
         return false;
+    }
+
+    private Map<String, Double> buildUtilizadoMap(List<AviamentoPlanejado> planejados, Map<String, Double> p3CountsNormalizado) {
+        Map<String, Double> map = new LinkedHashMap<>();
+        for (AviamentoPlanejado tp : planejados) {
+            map.putIfAbsent(tp.codigoSystextil(), p3CountsNormalizado.getOrDefault(tp.codigoNormalizado(), 0.0));
+        }
+        return map;
+    }
+
+    private Map<String, Long> buildReferenciasMap(List<AviamentoPlanejado> planejados, Map<String, Long> modelosPorCodigoNormalizado) {
+        Map<String, Long> map = new LinkedHashMap<>();
+        for (AviamentoPlanejado tp : planejados) {
+            map.putIfAbsent(tp.codigoSystextil(), modelosPorCodigoNormalizado.getOrDefault(tp.codigoNormalizado(), 0L));
+        }
+        return map;
     }
 
     private Map<String, Integer> buildMarcasMap(List<ItemRelatorio> itens, boolean usarMarcas) {

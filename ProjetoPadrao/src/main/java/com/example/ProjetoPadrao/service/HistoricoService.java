@@ -4,6 +4,7 @@ import com.example.ProjetoPadrao.model.ColecaoInfo;
 import com.example.ProjetoPadrao.model.ItemAlteracao;
 import com.example.ProjetoPadrao.model.AviamentoPlanejado;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -33,10 +34,12 @@ public class HistoricoService {
         public String descricao;
         public String modelo;
         public String aprovCont;
+        public String linha;
         public int total;
     }
 
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper mapper = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     @Autowired
@@ -57,6 +60,7 @@ public class HistoricoService {
             e.descricao         = tp.descricaoSystextil();
             e.modelo            = tp.modelo();
             e.aprovCont         = tp.aprovCont();
+            e.linha             = tp.linha();
             e.total             = tp.totalAprovacaoAviamento();
             snapshot.aviamentos.add(e);
         }
@@ -93,6 +97,7 @@ public class HistoricoService {
             e.descricao         = tp.descricaoSystextil();
             e.modelo            = tp.modelo();
             e.aprovCont         = tp.aprovCont();
+            e.linha             = tp.linha();
             e.total             = tp.totalAprovacaoAviamento();
             snapshot.aviamentos.add(e);
         }
@@ -116,6 +121,7 @@ public class HistoricoService {
         Map<String, String>       descricaoMap = new LinkedHashMap<>();
         Map<String, String>       modeloMap    = new LinkedHashMap<>();
         Map<String, String>       aprovContMap = new LinkedHashMap<>();
+        Map<String, String>       linhaMap     = new LinkedHashMap<>();
         Map<String, Integer>      ultimoValor  = new LinkedHashMap<>();
 
         for (SnapshotDto snap : snapshots) {
@@ -132,6 +138,7 @@ public class HistoricoService {
                 descricaoMap.putIfAbsent(cod, e.descricao);
                 if (e.modelo    != null) modeloMap.putIfAbsent(cod, e.modelo);
                 if (e.aprovCont != null) aprovContMap.putIfAbsent(cod, e.aprovCont);
+                if (e.linha     != null && !e.linha.isBlank()) linhaMap.put(cod, e.linha);
             }
         }
 
@@ -142,6 +149,7 @@ public class HistoricoService {
                         descricaoMap.get(entry.getKey()),
                         modeloMap.getOrDefault(entry.getKey(), ""),
                         aprovContMap.getOrDefault(entry.getKey(), ""),
+                        linhaMap.getOrDefault(entry.getKey(), ""),
                         ultimoValor.get(entry.getKey()),
                         entry.getValue().size() - 1,
                         entry.getValue()))

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Central de Aviamentos</title>
+    <title>Aviamentos Fora do Planejamento</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -13,6 +13,7 @@
 
     <style>
         *, *::before, *::after { font-family: 'Inter', system-ui, sans-serif; }
+        html { font-size: 14px; }
         body { background: #eef2f7; min-height: 100vh; }
 
         /* ── Header ─────────────────────────────────────────────────────── */
@@ -187,17 +188,27 @@
         .rh-count { margin-left: auto; font-size: 0.72rem; font-weight: 700; padding: 3px 11px; border-radius: 20px; }
 
         /* ── Table ──────────────────────────────────────────────────────── */
-        #tabelaExcessos, #tabelaNuncaUtil { table-layout: fixed; width: 100%; }
+        #tabelaExcessos, #tabelaNuncaUtil, #tabelaPL,
+        #tabelaExcessosCC, #tabelaSemUtil, #tabelaAnalise { table-layout: fixed; width: 100%; }
         .table thead th {
             background: #1c2a45; color: #c8d3e8;
             font-size: 0.72rem; font-weight: 600;
             text-transform: uppercase; letter-spacing: .6px;
-            white-space: nowrap; border: none; padding: 10px 14px; text-align: center;
+            white-space: nowrap; border: none; padding: 10px 14px;
+            text-align: center; vertical-align: middle;
+            position: relative;
         }
+        .col-resizer {
+            position: absolute; top: 0; right: 0; width: 8px; height: 100%;
+            cursor: col-resize; user-select: none; touch-action: none; z-index: 2;
+        }
+        .col-resizer:hover, .col-resizer.resizing { background: rgba(255,255,255,0.25); }
         .table tbody td { font-size: 0.845rem; vertical-align: middle; padding: 9px 14px; border-color: #f0f3fa; }
         .table-hover tbody tr:hover td { background: #f6f8fd !important; }
         tr.excess-row    td { background: #fff8f8 !important; }
         tr.excess-row-hi td { background: #fff8f8 !important; }
+        th.col-p3 { background: #14294a; }
+        td.col-p3 { background: #eaf1ff !important; font-weight: 700; color: #1a56db; }
         .diff-pill {
             background: #e03131; color: white;
             font-size: 0.76rem; font-weight: 700;
@@ -270,12 +281,11 @@
                     <i class="bi bi-grid-3x3-gap-fill"></i>
                 </div>
                 <div>
-                    <div class="brand-title">Central de Aviamentos</div>
+                    <div class="brand-title">Aviamentos Fora do Planejamento</div>
                     <div class="brand-subtitle">Comparação de Planilhas</div>
                 </div>
             </div>
             <div style="display:flex;align-items:center;gap:0.75rem;">
-                <span class="header-pill">Aviamentos Fora do Planejamento</span>
                 <button type="button"
                         data-bs-toggle="modal" data-bs-target="#modalInstrucao"
                         style="background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.35);
@@ -385,13 +395,14 @@
                         <div class="kpi-card h-100">
                             <div class="kpi-icon red"><i class="bi bi-exclamation-triangle-fill"></i></div>
                             <div>
-                                <div class="kpi-num red" th:text="${totalPL}">0</div>
+                                <div class="kpi-num red" id="kpiPL" th:text="${totalPL}">0</div>
                                 <div class="kpi-lbl">Divergências</div>
                             </div>
                         </div>
                     </div>
                     <div class="col-12 col-lg-3 d-flex align-items-center">
                         <a th:href="@{/exportar-pecas-liberadas(colecao=${modoTodas ? 'todas' : colecaoAtual?.slug})}"
+                           id="btnExportarPL"
                            class="btn-export">
                             <i class="bi bi-file-earmark-excel-fill" style="font-size:1.1rem"></i>
                             Exportar Excel
@@ -423,11 +434,11 @@
                         <span class="badge bg-danger rh-count" th:text="${#lists.size(resultadoPL)}"></span>
                     </div>
                     <div class="table-responsive">
-                        <table id="tabelaPL" class="table table-hover mb-0 w-100">
+                        <table id="tabelaPL" class="table table-hover mb-0">
                             <colgroup>
-                                <col style="width:11%"> <col style="width:11%"> <col style="width:19%">
-                                <col style="width:8%">  <col style="width:8%">  <col style="width:8%">
-                                <col style="width:7%">  <col style="width:12%"> <col style="width:8%">
+                                <col style="width:10%"> <col style="width:10%"> <col style="width:11%">
+                                <col style="width:9%">  <col style="width:9%">  <col style="width:11%">
+                                <col style="width:7%">  <col style="width:7%">  <col style="width:8%"> <col style="width:10%"> <col style="width:6%">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -435,9 +446,11 @@
                                     <th>Código Systêxtil</th>
                                     <th>Descrição</th>
                                     <th>Aprov/Cont</th>
-                                    <th class="text-center">Qtd Aprov</th>
-                                    <th class="text-center">Consumo Total</th>
-                                    <th class="text-center">Diferença</th>
+                                    <th class="text-center">Qtd<br>Aprovada</th>
+                                    <th class="text-center">Consumo pçs<br>Liberadas</th>
+                                    <th class="text-center">Diferença<br>pçs Liberadas</th>
+                                    <th class="text-center col-p3">Consumo<br>Total</th>
+                                    <th class="text-center col-p3">Qtd Ref<br>Totais</th>
                                     <th>Marca</th>
                                     <th>Coleção</th>
                                 </tr>
@@ -449,11 +462,13 @@
                                     <td th:text="${item.codigoSystextil}"></td>
                                     <td th:text="${item.descricaoSystextil}"></td>
                                     <td th:text="${item.aprovCont}"></td>
-                                    <td class="text-center" th:text="${item.totalAprovacaoAviamento}"></td>
+                                    <td class="text-center fw-bold" th:text="${item.totalAprovacaoAviamento}"></td>
                                     <td class="text-center fw-bold" th:text="${#numbers.formatDecimal(item.totalModeloSomado, 1, 'POINT', 3, 'COMMA')}"></td>
                                     <td class="text-center">
                                         <span class="diff-pill" th:text="${'+' + #numbers.formatDecimal(item.diferenca, 1, 'POINT', 3, 'COMMA')}"></span>
                                     </td>
+                                    <td class="text-center col-p3" th:text="${utilizadoMap != null and utilizadoMap[item.codigoSystextil] != null ? #numbers.formatDecimal(utilizadoMap[item.codigoSystextil], 1, 'POINT', 3, 'COMMA') : 0}"></td>
+                                    <td class="text-center col-p3" th:text="${referenciasMap != null and referenciasMap[item.codigoSystextil] != null ? referenciasMap[item.codigoSystextil] : 0}"></td>
                                     <td th:text="${item.marcas}"></td>
                                     <td th:text="${not #strings.isEmpty(item.colecao) ? item.colecao : (colecaoAtual != null ? colecaoAtual.nomeOriginal : '')}"></td>
                                 </tr>
@@ -563,6 +578,38 @@
                 <i class="bi bi-exclamation-triangle-fill me-1"></i>Verifique se as planilhas foram atualizadas
             </p>
 
+            <hr style="margin:2rem 0 1.5rem;">
+
+            <div>
+                <div class="result-block-head mb-3">
+                    <div class="rh-icon" style="background:#e7f1ff;"><i class="bi bi-tags-fill" style="color:#1a56db;"></i></div>
+                    <span class="rh-title">Gerenciar Marcas</span>
+                    <span class="badge bg-secondary rh-count" th:text="${#lists.size(marcasValidas)}"></span>
+                </div>
+                <p class="text-muted mb-3" style="font-size:.85rem">
+                    Marcas reconhecidas na coluna "Marca/Linha" das planilhas e usadas nos filtros das tabelas.
+                </p>
+                <div class="marca-chips mb-3">
+                    <span class="marca-chip" th:each="m : ${marcasValidas}"
+                          style="display:inline-flex;align-items:center;gap:6px;">
+                        <span th:text="${m}"></span>
+                        <form th:action="@{/marcas/remover}" method="post" style="display:inline;margin:0;">
+                            <input type="hidden" name="nome" th:value="${m}">
+                            <input type="hidden" name="colecao" th:value="${colecaoAtual?.slug}">
+                            <button type="submit" class="btn btn-sm p-0 border-0 text-danger"
+                                    style="line-height:1;font-size:1rem;" title="Remover marca"
+                                    onclick="return confirm('Remover esta marca?');">&times;</button>
+                        </form>
+                    </span>
+                </div>
+                <form th:action="@{/marcas/adicionar}" method="post" class="d-flex gap-2" style="max-width:420px;">
+                    <input type="hidden" name="colecao" th:value="${colecaoAtual?.slug}">
+                    <input type="text" name="nome" class="form-control form-control-sm"
+                           placeholder="Nova marca (ex: Nome da Nova Linha)" required maxlength="60">
+                    <button type="submit" class="btn btn-sm btn-primary">Adicionar</button>
+                </form>
+            </div>
+
         </div>
 
         <!-- ── Aba: Coleção Completa ──────────────────────────────────── -->
@@ -602,7 +649,7 @@
                              onclick="var e=document.getElementById('bloco-excessos-cc');window.scrollTo({top:e.getBoundingClientRect().top+window.scrollY-20,behavior:'smooth'})">
                             <div class="kpi-icon red"><i class="bi bi-exclamation-triangle-fill"></i></div>
                             <div>
-                                <div class="kpi-num red" th:text="${totalExcessosCC}">0</div>
+                                <div class="kpi-num red" id="kpiCC" th:text="${totalExcessosCC}">0</div>
                                 <div class="kpi-lbl">Aviamentos em Excesso</div>
                             </div>
                         </div>
@@ -644,11 +691,11 @@
                               th:text="${#lists.size(resultadoCC.excessos)}"></span>
                     </div>
                     <div class="table-responsive">
-                        <table id="tabelaExcessosCC" class="table table-hover mb-0 w-100">
+                        <table id="tabelaExcessosCC" class="table table-hover mb-0">
                             <colgroup>
-                                <col style="width:11%"> <col style="width:11%"> <col style="width:19%">
-                                <col style="width:8%">  <col style="width:8%">  <col style="width:8%">
-                                <col style="width:7%">  <col style="width:12%">
+                                <col style="width:9%">  <col style="width:9%">  <col style="width:15%">
+                                <col style="width:7%">  <col style="width:7%">  <col style="width:8%">
+                                <col style="width:8%">  <col style="width:7%">  <col style="width:10%"> <col style="width:9%">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -656,10 +703,12 @@
                                     <th>Código Systêxtil</th>
                                     <th>Descrição</th>
                                     <th>Aprov/Cont</th>
-                                    <th class="text-center">Aprovado</th>
-                                    <th class="text-center">Utilizado</th>
+                                    <th class="text-center">Qtd<br>Aprovada</th>
+                                    <th class="text-center col-p3">Consumo<br>Total</th>
+                                    <th class="text-center col-p3">Qtd Ref<br>Totais</th>
                                     <th class="text-center">Diferença</th>
                                     <th>Marca</th>
+                                    <th>Coleção</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -670,11 +719,13 @@
                                     <td th:text="${item.descricaoSystextil}"></td>
                                     <td th:text="${item.aprovCont}"></td>
                                     <td class="text-center" th:text="${item.totalAprovacaoAviamento}"></td>
-                                    <td class="text-center fw-bold" th:text="${#numbers.formatDecimal(item.totalModeloSomado, 1, 'POINT', 3, 'COMMA')}"></td>
+                                    <td class="text-center col-p3" th:text="${#numbers.formatDecimal(item.totalModeloSomado, 1, 'POINT', 3, 'COMMA')}"></td>
+                                    <td class="text-center col-p3" th:text="${referenciasMap != null and referenciasMap[item.codigoSystextil] != null ? referenciasMap[item.codigoSystextil] : 0}"></td>
                                     <td class="text-center">
                                         <span class="diff-pill" th:text="${'+' + #numbers.formatDecimal(item.diferenca, 1, 'POINT', 3, 'COMMA')}"></span>
                                     </td>
                                     <td th:text="${item.marcas}"></td>
+                                    <td th:text="${not #strings.isEmpty(item.colecao) ? item.colecao : (colecaoAtual != null ? colecaoAtual.nomeOriginal : '')}"></td>
                                 </tr>
                             </tbody>
                         </table>
@@ -714,10 +765,18 @@
                         <div class="kpi-card h-100">
                             <div class="kpi-icon slate"><i class="bi bi-slash-circle-fill"></i></div>
                             <div>
-                                <div class="kpi-num slate" th:text="${totalNuncaUtilizados}">0</div>
+                                <div class="kpi-num slate" id="kpiSU" th:text="${totalNuncaUtilizados}">0</div>
                                 <div class="kpi-lbl">Nunca Utilizados</div>
                             </div>
                         </div>
+                    </div>
+                    <div class="col-12 col-lg-3 d-flex align-items-center">
+                        <a th:href="@{/exportar(colecao=${modoTodas ? 'todas' : colecaoAtual?.slug})}"
+                           id="btnExportarSU"
+                           class="btn-export">
+                            <i class="bi bi-file-earmark-excel-fill" style="font-size:1.1rem"></i>
+                            Exportar Excel
+                        </a>
                     </div>
                 </div>
 
@@ -740,7 +799,7 @@
                 </div>
 
                 <div class="table-responsive">
-                    <table id="tabelaSemUtil" class="table table-hover mb-0 w-100">
+                    <table id="tabelaSemUtil" class="table table-hover mb-0">
                         <colgroup>
                             <col style="width:17%"> <col style="width:12%"> <col style="width:17%">
                             <col style="width:7%">  <col style="width:8%">  <col style="width:17%">
@@ -787,7 +846,7 @@
             <div th:if="${#lists.isEmpty(historicoAlteracoes)}"
                  class="text-muted" style="padding:2rem 0;font-size:.92rem;">
                 <i class="bi bi-info-circle me-2"></i>
-                Ainda não há histórico de alterações. Faça uploads da planilha1 em datas diferentes para comparar.
+                Ainda não há histórico de alterações. Assim que houver um novo upload da planilha1 (a qualquer momento, mesmo no mesmo dia) com alguma quantidade aprovada diferente, a alteração aparecerá aqui automaticamente.
             </div>
 
             <div th:unless="${#lists.isEmpty(historicoAlteracoes)}">
@@ -797,29 +856,43 @@
                     <span class="badge bg-warning text-dark rh-count"
                           th:text="${#lists.size(historicoAlteracoes)}"></span>
                 </div>
+
+                <div class="filter-bar mb-3">
+                    <span class="fi-label">Ordenar por</span>
+                    <button type="button" id="btnOrdenarData" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-calendar-range me-1"></i>Data
+                    </button>
+                    <button type="button" id="btnOrdenarAlteracoes" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-arrow-repeat me-1"></i>Alterações
+                    </button>
+                </div>
+
                 <div class="table-responsive">
-                    <table id="tabelaAnalise" class="table table-hover mb-0 w-100">
+                    <table id="tabelaAnalise" class="table table-hover mb-0">
                         <colgroup>
-                            <col style="width:10%"> <col style="width:9%"> <col style="width:21%">
+                            <col style="width:9%"> <col style="width:10%"> <col style="width:18%">
                             <col style="width:7%">  <col style="width:8%"> <col style="width:7%">
-                            <col style="width:7%">  <col style="width:31%">
+                            <col style="width:7%">  <col style="width:10%"> <col style="width:24%"> <col style="width:0%">
                         </colgroup>
                         <thead>
                             <tr>
-                                <th>Código</th>
                                 <th>Modelo</th>
+                                <th>Código</th>
                                 <th>Descrição</th>
                                 <th class="text-center">Aprov/Cont</th>
-                                <th class="text-center">Qtd Atual</th>
-                                <th class="text-center">Utilizado</th>
+                                <th class="text-center">Qtd Aprovada</th>
+                                <th class="text-center">Consumo Total</th>
                                 <th class="text-center">Alterações</th>
+                                <th>Marca</th>
                                 <th>Histórico</th>
+                                <th class="d-none">Data</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr th:each="item : ${historicoAlteracoes}">
-                                <td th:text="${item.codigoSystextil}"></td>
+                            <tr th:each="item : ${historicoAlteracoes}"
+                                th:with="ultimo=${item.historico[item.historico.size()-1]}">
                                 <td th:text="${item.modelo}"></td>
+                                <td th:text="${item.codigoSystextil}"></td>
                                 <td th:text="${item.descricaoSystextil}"></td>
                                 <td class="text-center" th:text="${item.aprovCont}"></td>
                                 <td class="text-center fw-bold" th:text="${item.quantidadeAtual}"></td>
@@ -828,11 +901,14 @@
                                     <span class="badge bg-warning text-dark"
                                           th:text="${item.totalAlteracoes}"></span>
                                 </td>
+                                <td th:text="${item.linha}"></td>
                                 <td>
                                     <ul class="mb-0 ps-3" style="font-size:.82rem;line-height:1.8;">
                                         <li th:each="h : ${item.historico}" th:text="${h}"></li>
                                     </ul>
                                 </td>
+                                <td class="d-none"
+                                    th:text="${#strings.substring(ultimo,6,10) + '-' + #strings.substring(ultimo,3,5) + '-' + #strings.substring(ultimo,0,2) + ' ' + #strings.substring(ultimo,11,16)}"></td>
                             </tr>
                         </tbody>
                     </table>
@@ -855,7 +931,8 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" style="font-size:0.92rem;line-height:1.7;">
-                <p>Entre na gerencial do fluxograma e, na aba <strong>"Visões"</strong>, procure por <strong>"Claude Aviamento"</strong>. Irão aparecer 3 planilhas já organizadas em ordem.</p>
+                <p>Entre na gerencial do fluxogama e, na aba <strong>"Visões"</strong>, procure por <strong>"CLAUDE AVIAMENTOS"</strong>. Irão aparecer 3 planilhas já organizadas em ordem.</p>
+                <p style="color:#dc3545;font-weight:700;">ATENÇÃO: Nos filtros da gerencial, colocar a coleção vigente.</p>
 <ul>
                     <li><strong>Planilha 1</strong> — Aviamentos Aprovados</li>
                     <li><strong>Planilha 2</strong> — Aviamentos Utilizados - Peças Liberadas</li>
@@ -910,6 +987,79 @@
         'filtroMarcaSU':  new Set()
     };
 
+    // ── Colunas redimensionáveis (arrastar borda do cabeçalho) ──────────────
+    var _reaplicarLargura = {};
+
+    function tornarRedimensionavel(tableId) {
+        var table = document.getElementById(tableId);
+        if (!table) return;
+        var colgroup = table.querySelector('colgroup');
+        var ths = table.querySelectorAll('thead th');
+        if (!colgroup) return;
+        var cols = colgroup.querySelectorAll('col');
+        if (!cols.length || cols.length !== ths.length) return;
+
+        var storageKey = 'colWidths_' + tableId;
+        var salvo = null;
+        try { salvo = JSON.parse(localStorage.getItem(storageKey)); } catch (e) {}
+
+        var refEl = document.querySelector('.page-wrap') || document.body;
+        var larguraTabela = table.getBoundingClientRect().width ||
+            refEl.getBoundingClientRect().width || 800;
+        var widths = [];
+        cols.forEach(function(col, i) {
+            if (salvo && salvo.length === cols.length && salvo[i] > 0) {
+                widths.push(salvo[i]);
+            } else {
+                var pct = parseFloat(col.style.width) || (100 / cols.length);
+                widths.push(Math.round(larguraTabela * pct / 100));
+            }
+        });
+
+        function aplicar() {
+            var total = 0;
+            cols.forEach(function(col, i) {
+                col.style.width = widths[i] + 'px';
+                total += widths[i];
+            });
+            table.style.width = total + 'px';
+        }
+        aplicar();
+        _reaplicarLargura[tableId] = aplicar;
+
+        ths.forEach(function(th, i) {
+            var handle = document.createElement('div');
+            handle.className = 'col-resizer';
+            handle.addEventListener('click', function(e) { e.stopPropagation(); });
+            th.appendChild(handle);
+
+            handle.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var startX = e.pageX;
+                var startWidth = widths[i];
+                handle.classList.add('resizing');
+
+                function onMove(ev) {
+                    widths[i] = Math.max(40, startWidth + (ev.pageX - startX));
+                    aplicar();
+                }
+                function onUp() {
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                    handle.classList.remove('resizing');
+                    try { localStorage.setItem(storageKey, JSON.stringify(widths)); } catch (e2) {}
+                }
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+            });
+        });
+    }
+
+    function reaplicarTodasLarguras() {
+        Object.keys(_reaplicarLargura).forEach(function(id) { _reaplicarLargura[id](); });
+    }
+
     function matchesFiltro(filtroId, colData) {
         var ativos = marcasAtivas[filtroId];
         if (!ativos || ativos.size === 0) return true;
@@ -920,10 +1070,10 @@
         return false;
     }
 
-    // Filtro por Marca na tabelaPL (col 7 — Marca, após inserção de Aprov/Cont)
+    // Filtro por Marca na tabelaPL (col 8 — Marca, após inserção de Aprov/Cont e Utilizado)
     $.fn.dataTable.ext.search.push(function(settings, data) {
         if (settings.nTable.id !== 'tabelaPL') return true;
-        return matchesFiltro('filtroMarcaPL', data[7]);
+        return matchesFiltro('filtroMarcaPL', data[9]);
     });
 
     // Filtro por Marca na tabelaSemUtil (col 6)
@@ -932,11 +1082,13 @@
         return matchesFiltro('filtroMarcaSU', data[6]);
     });
 
+
     $(document).ready(function () {
         var tabelaExcessos   = null;
         var tabelaSemUtil    = null;
         var tabelaPL         = null;
         var tabelaExcessosCC = null;
+        var tabelaAnalise    = null;
 
         if ($('#tabelaPL').length) {
             tabelaPL = $('#tabelaPL').DataTable({
@@ -945,9 +1097,12 @@
                 lengthChange: false,
                 autoWidth: false,
                 order: [[6, 'desc']],
-                columnDefs: [{ targets: [4, 5, 6], className: 'text-center' }]
+                columnDefs: [{ targets: [4, 5, 6, 7], className: 'text-center' }]
             });
             // handler unificado via delegação — ver abaixo
+            tabelaPL.on('draw', function() {
+                $('#kpiPL').text(tabelaPL.rows({ filter: 'applied' }).count());
+            });
         }
 
         if ($('#tabelaExcessos').length) {
@@ -969,6 +1124,9 @@
                 order: [[1, 'asc']]
             });
             // handler unificado via delegação — ver abaixo
+            tabelaSemUtil.on('draw', function() {
+                $('#kpiSU').text(tabelaSemUtil.rows({ filter: 'applied' }).count());
+            });
         }
         if ($('#tabelaExcessosCC').length) {
             tabelaExcessosCC = $('#tabelaExcessosCC').DataTable({
@@ -976,22 +1134,36 @@
                 pageLength: 100,
                 lengthChange: false,
                 autoWidth: false,
-                order: [[6, 'desc']],
-                columnDefs: [{ targets: [4, 5, 6], className: 'text-center' }]
+                order: [[7, 'desc']],
+                columnDefs: [{ targets: [4, 5, 6, 7], className: 'text-center' }]
             });
             $.fn.dataTable.ext.search.push(function(settings, data) {
                 if (settings.nTable.id !== 'tabelaExcessosCC') return true;
-                return matchesFiltro('filtroMarcaCC', data[7]);
+                return matchesFiltro('filtroMarcaCC', data[8]);
+            });
+            tabelaExcessosCC.on('draw', function() {
+                $('#kpiCC').text(tabelaExcessosCC.rows({ filter: 'applied' }).count());
             });
         }
         if ($('#tabelaAnalise').length) {
-            $('#tabelaAnalise').DataTable({
+            tabelaAnalise = $('#tabelaAnalise').DataTable({
                 language: dtLang,
                 pageLength: 50,
                 lengthChange: false,
                 autoWidth: false,
                 order: [[6, 'desc']],
                 columnDefs: [{ targets: [3, 4, 5, 6], className: 'text-center' }]
+            });
+
+            // Botão "Data": ordena pela coluna oculta de data (índice 9), da mais recente para a mais antiga
+            $(document).on('click', '#btnOrdenarData', function() {
+                tabelaAnalise.order([9, 'desc']).draw();
+                $(this).addClass('active').siblings('.btn').removeClass('active');
+            });
+            // Botão "Alterações": ordena pela coluna de Alterações, crescente
+            $(document).on('click', '#btnOrdenarAlteracoes', function() {
+                tabelaAnalise.order([6, 'desc']).draw();
+                $(this).addClass('active').siblings('.btn').removeClass('active');
             });
         }
 
@@ -1024,6 +1196,8 @@
             if (filtroId === 'filtroMarcaPL'  && tabelaPL)         tabelaPL.draw();
             if (filtroId === 'filtroMarcaCC'  && tabelaExcessosCC) tabelaExcessosCC.draw();
             if (filtroId === 'filtroMarcaSU'  && tabelaSemUtil)     tabelaSemUtil.draw();
+
+            if (typeof atualizarBtnExportar === 'function') atualizarBtnExportar(filtroId);
         });
 
         // Auto-save ao sair do campo
@@ -1050,8 +1224,11 @@
         document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(function(btn) {
             btn.addEventListener('shown.bs.tab', function() {
                 $.fn.dataTable.tables({ visible: true, api: true }).columns.adjust();
+                reaplicarTodasLarguras();
             });
         });
+
+        ['tabelaPL', 'tabelaExcessosCC', 'tabelaSemUtil', 'tabelaAnalise'].forEach(tornarRedimensionavel);
     });
 </script>
 <script th:inline="javascript">
@@ -1059,13 +1236,23 @@
 var _colecaoSlug  = /*[[${colecaoAtual?.slug}]]*/ null;
 var _modoTodas    = /*[[${modoTodas}]]*/ false;
 
-function atualizarBtnExportar(filtroId, btnId, baseUrl) {
-    var btn  = document.getElementById(btnId);
+var _exportarConfig = {
+    'filtroMarcaPL': { btnId: 'btnExportarPL', baseUrl: '/exportar-pecas-liberadas' },
+    'filtroMarcaCC': { btnId: 'btnExportarCC', baseUrl: '/exportar-colecao-completa' },
+    'filtroMarcaSU': { btnId: 'btnExportarSU', baseUrl: '/exportar' }
+};
+
+function atualizarBtnExportar(filtroId) {
+    var cfg = _exportarConfig[filtroId];
+    if (!cfg) return;
+    var btn = document.getElementById(cfg.btnId);
     if (!btn) return;
-    var col  = _modoTodas ? 'todas' : (_colecaoSlug || '');
-    var marca = document.getElementById(filtroId) ? document.getElementById(filtroId).value : '';
-    var url = baseUrl + '?colecao=' + encodeURIComponent(col);
-    if (marca) url += '&marca=' + encodeURIComponent(marca);
+    var col = _modoTodas ? 'todas' : (_colecaoSlug || '');
+    var url = cfg.baseUrl + '?colecao=' + encodeURIComponent(col);
+    var marcasSet = (typeof marcasAtivas !== 'undefined') ? marcasAtivas[filtroId] : null;
+    if (marcasSet) {
+        marcasSet.forEach(function(m) { url += '&marca=' + encodeURIComponent(m); });
+    }
     btn.href = url;
 }
 
